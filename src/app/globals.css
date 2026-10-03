@@ -37,6 +37,27 @@
   --radius-tile: 10px;
   --radius-dialog: 16px;
   --radius-control: 10px;
+
+  /* shadcn/ui bridge — one declaration in :root; every value is a var()
+     reference to a design token, so .light overrides propagate automatically.
+     `accent` utilities are the neutral hover surface (see @theme below);
+     the design CTA keeps --accent and gains the `cta` utilities. */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface-2);
+  --popover-foreground: var(--text);
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-ink);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--text-muted);
+  --accent-foreground: var(--text);
+  --destructive: var(--urgency-overdue);
+  --input: var(--border);
+  --radius: 0.625rem;
 }
 
 .light {
@@ -70,8 +91,24 @@
   --color-border-subtle: var(--border);
   --color-ink: var(--text);
   --color-ink-muted: var(--text-muted);
-  --color-accent: var(--accent);
-  --color-accent-ink: var(--accent-ink);
+  --color-accent: var(--surface-2);
+  --color-accent-foreground: var(--text);
+  --color-cta: var(--accent);
+  --color-cta-ink: var(--accent-ink);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
   --color-ring: var(--ring);
 
   --color-urgency-calm: var(--urgency-calm);

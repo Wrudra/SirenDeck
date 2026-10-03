@@ -23,3 +23,20 @@ export function yearlyCost(item: {
   if (perYear == null) return null;
   return item.amount * perYear;
 }
+
+/** Formats a money amount with the item's currency, no decimals. */
+export function formatCost(
+  amount: number | null,
+  currency: "BDT" | "USD" | "EUR",
+): string | null {
+  if (amount == null) return null;
+  try {
+    return new Intl.NumberFormat("en", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `${currency} ${amount}`;
+  }
+}
