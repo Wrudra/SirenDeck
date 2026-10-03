@@ -87,22 +87,36 @@ export async function addItem(
     return { ok: false, fieldErrors: zodFieldErrors(parsed.error) };
   }
 
-  const { error } = await supabase.from("items").insert({
-    user_id: user.id,
-    category_id: parsed.data.categoryId,
-    title: parsed.data.title,
-    notes: parsed.data.notes,
-    due_date: parsed.data.dueDate,
-    status: "active",
-    recurrence: parsed.data.recurrence,
-    auto_renews: parsed.data.autoRenews,
-    amount: parsed.data.amount,
-    currency: parsed.data.currency,
-  });
+  const { data: inserted, error } = await supabase
+    .from("items")
+    .insert({
+      user_id: user.id,
+      category_id: parsed.data.categoryId,
+      title: parsed.data.title,
+      notes: parsed.data.notes,
+      due_date: parsed.data.dueDate,
+      status: "active",
+      recurrence: parsed.data.recurrence,
+      auto_renews: parsed.data.autoRenews,
+      amount: parsed.data.amount,
+      currency: parsed.data.currency,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
+  if (error || !inserted) {
     return { ok: false, error: "Could not save the item. Please try again." };
   }
+
+  // Default reminder offsets (spec: 30, 7, 1). Failures are non-fatal —
+  // the item exists; reminders can be managed later.
+  await supabase.from("reminders").insert(
+    ([30, 7, 1] as const).map((days_before) => ({
+      user_id: user.id,
+      item_id: inserted.id,
+      days_before,
+    })),
+  );
 
   revalidatePath("/app");
   return { ok: true };
