@@ -24,6 +24,7 @@ sized by monthly/yearly cost and colored by urgency. It must answer at a glance:
 - **Skills CLI**: `npx skills add` skipped; guidelines below are the distilled versions.
 
 ## Working rules
+0. Commits are authored by the repo owner ONLY — NEVER add `Co-authored-by:` trailers (including Copilot) or any other contributor attribution. No exceptions.
 1. Work in PHASES. After each phase, stop, summarize, list verification steps, wait for "continue".
 2. Before using a library API, check its current docs. If a command fails, read the error and fix it — don't guess.
 3. All schema changes via migration files in `supabase/migrations/`. Never dashboard edits.
