@@ -71,7 +71,8 @@ Tiles use border emphasis + lift scale on hover, not shadows.
 `Dialog` (item detail/add-edit), `Input`, `DropdownMenu` (filters, snooze presets), `Toast`.
 Everything else hand-built on Tailwind + Motion: tile, shelf, summary strip, filter bar.
 
-## Anti-generic checklist (taste-skill distilled)
+## Anti-generic checklist (per `docs/design-skills/`)
 - No default Inter; no purple gradients; no uniform 3-col card grid; no giant hero.
 - The treemap IS the hero. Chrome (top bar, filters) recedes: small, muted, quiet.
 - Every element earns its place — if it doesn't answer "what renews soon and what does it cost", it's decoration. Cut it.
+- When in doubt: `critique-visual-hierarchy.md`, `color-system.md`, `motion-system.md` in [docs/design-skills/owl-listener/](design-skills/owl-listener).
