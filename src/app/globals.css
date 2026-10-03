@@ -117,6 +117,16 @@
   --color-urgency-critical: var(--urgency-critical);
   --color-urgency-overdue: var(--urgency-overdue);
 
+  /* text colors safe on urgency fills */
+  --color-on-calm: var(--on-calm);
+  --color-on-soon: var(--on-soon);
+  --color-on-urgent: var(--on-urgent);
+  --color-on-critical: var(--on-critical);
+  --color-on-overdue: var(--on-overdue);
+
+  /* mono for money/dates (JetBrains Mono wired in root layout) */
+  --font-mono-var: var(--font-mono), ui-monospace, monospace;
+
   --radius-tile: 10px;
   --radius-dialog: 16px;
   --radius-control: 10px;
@@ -130,3 +140,38 @@ body {
 
 /* tabular money figures */
 .tabular { font-variant-numeric: tabular-nums; }
+
+/* ── Urgency pulses ──────────────────────────────────────────────────────
+   Opacity/scale≤1.01/border-color oscillation only — no layout-affecting
+   properties. Disabled under prefers-reduced-motion (Motion animations are
+   handled separately via MotionConfig reducedMotion="user"). */
+@keyframes pulse-soon {
+  0%, 100% { opacity: 0.88; }
+  50% { opacity: 1; }
+}
+@keyframes pulse-urgent {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.01; }
+}
+@keyframes pulse-critical {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.01; }
+}
+@keyframes pulse-overdue {
+  0%, 100% { border-color: var(--urgency-overdue); }
+  50% { border-color: color-mix(in oklch, var(--urgency-overdue), var(--text) 55%); }
+}
+
+.tile-pulse-soon { animation: pulse-soon 2.4s ease-in-out infinite; }
+.tile-pulse-urgent { animation: pulse-urgent 1.8s ease-in-out infinite; }
+.tile-pulse-critical { animation: pulse-critical 1.2s ease-in-out infinite; }
+.tile-pulse-overdue { animation: pulse-overdue 1s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-pulse-soon,
+  .tile-pulse-urgent,
+  .tile-pulse-critical,
+  .tile-pulse-overdue {
+    animation: none;
+  }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useId, useRef, useState } from "react";
+import { useActionState, useCallback, useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -36,8 +36,11 @@ const RECURRENCE_LABELS: Record<string, string> = {
 
 export interface ItemFormDialogProps {
   categories: CategoryRow[];
-  trigger: React.ReactNode;
+  trigger?: React.ReactNode;
   item?: ItemFormValues;
+  /** controlled open — useful when opening from a map tile click */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export interface ItemFormValues {
@@ -52,9 +55,23 @@ export interface ItemFormValues {
   currency: string;
 }
 
-export function ItemFormDialog({ categories, trigger, item }: ItemFormDialogProps) {
+export function ItemFormDialog({
+  categories,
+  trigger,
+  item,
+  open: controlledOpen,
+  onOpenChange,
+}: ItemFormDialogProps) {
   const isEdit = item != null;
-  const [open, setOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = useCallback(
+    (next: boolean) => {
+      setUncontrolledOpen(next);
+      onOpenChange?.(next);
+    },
+    [onOpenChange],
+  );
   const formRef = useRef<HTMLFormElement>(null);
   const uid = useId();
 
@@ -81,7 +98,7 @@ export function ItemFormDialog({ categories, trigger, item }: ItemFormDialogProp
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit item" : "Add item"}</DialogTitle>
