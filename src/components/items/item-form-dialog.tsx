@@ -117,13 +117,16 @@ export function ItemFormDialog({
               name="title"
               placeholder="Netflix, passport renewal, car insurance…"
               defaultValue={item?.title}
+              maxLength={120}
               aria-describedby={state.fieldErrors?.title ? `${uid}-title-err` : undefined}
               aria-invalid={state.fieldErrors?.title ? true : undefined}
             />
-            {state.fieldErrors?.title && (
+            {state.fieldErrors?.title ? (
               <p id={`${uid}-title-err`} className="text-xs text-destructive">
                 {state.fieldErrors.title}
               </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">A name you will recognize on the map.</p>
             )}
           </div>
 
@@ -152,19 +155,23 @@ export function ItemFormDialog({
               type="date"
               required
               defaultValue={item?.dueDate}
-             aria-describedby={state.fieldErrors?.dueDate ? `${uid}-due-err` : undefined}
+              aria-describedby={state.fieldErrors?.dueDate ? `${uid}-due-err` : `${uid}-due-hint`}
               aria-invalid={state.fieldErrors?.dueDate ? true : undefined}
             />
-            {state.fieldErrors?.dueDate && (
+            {state.fieldErrors?.dueDate ? (
               <p id={`${uid}-due-err`} className="text-xs text-destructive">
                 {state.fieldErrors.dueDate}
+              </p>
+            ) : (
+              <p id={`${uid}-due-hint`} className="text-xs text-muted-foreground">
+                When it next renews or expires.
               </p>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
-              <Label htmlFor={`${uid}-amount`}>Amount (optional)</Label>
+              <Label htmlFor={`${uid}-amount`}>Amount</Label>
               <Input
                 id={`${uid}-amount`}
                 name="amount"
@@ -174,12 +181,16 @@ export function ItemFormDialog({
                 inputMode="decimal"
                 placeholder="e.g. 1200"
                 defaultValue={item?.amount ?? undefined}
-                aria-describedby={state.fieldErrors?.amount ? `${uid}-amount-err` : undefined}
+                aria-describedby={state.fieldErrors?.amount ? `${uid}-amount-err` : `${uid}-amount-hint`}
                 aria-invalid={state.fieldErrors?.amount ? true : undefined}
               />
-              {state.fieldErrors?.amount && (
+              {state.fieldErrors?.amount ? (
                 <p id={`${uid}-amount-err`} className="text-xs text-destructive">
                   {state.fieldErrors.amount}
+                </p>
+              ) : (
+                <p id={`${uid}-amount-hint`} className="text-xs text-muted-foreground">
+                  Optional. Unpriced items wait on the shelf below the map.
                 </p>
               )}
             </div>
@@ -216,7 +227,7 @@ export function ItemFormDialog({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor={`${uid}-notes`}>Notes (optional)</Label>
+            <Label htmlFor={`${uid}-notes`}>Notes</Label>
             <textarea
               id={`${uid}-notes`}
               name="notes"

@@ -33,6 +33,8 @@
 
   /* motion tokens */
   --ease-snappy: cubic-bezier(0.2, 0.9, 0.3, 1.4);
+  /* fluid choreography easing (elayadesign B7) — landing/auth/section motion */
+  --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
 
   --radius-tile: 10px;
   --radius-dialog: 16px;
@@ -130,6 +132,21 @@
   --radius-tile: 10px;
   --radius-dialog: 16px;
   --radius-control: 10px;
+
+  /* motion system tokens (owl-listener motion-system) */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --ease-accelerate: cubic-bezier(0.3, 0, 1, 0.3);
+}
+
+/* system-level reduced motion: tokens collapse to instant; pulses off */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ease-fluid: linear;
+    --ease-standard: linear;
+    --ease-decelerate: linear;
+    --ease-accelerate: linear;
+  }
 }
 
 body {
@@ -173,5 +190,27 @@ body {
   .tile-pulse-critical,
   .tile-pulse-overdue {
     animation: none;
+  }
+}
+
+/* ── Landing/marketing utilities (elayadesign B7 scroll interpolation) ── */
+.reveal-init {
+  opacity: 0;
+  transform: translateY(4rem);
+  filter: blur(12px);
+}
+
+.reveal-in {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-init {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
   }
 }

@@ -13,7 +13,7 @@ export default async function AppLayout({
   return (
     <div className="flex h-dvh flex-col">
       <TopBar email={email} />
-      <main className="flex flex-1 flex-col overflow-hidden">{children}</main>
+      <main id="main-content" className="flex flex-1 flex-col overflow-hidden">{children}</main>
     </div>
   );
 }

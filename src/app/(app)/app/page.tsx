@@ -74,7 +74,7 @@ export default async function AppPage({
         <ItemFormDialog
           categories={categories}
           trigger={
-            <Button size="sm" data-icon="inline-start">
+            <Button size="sm" data-icon="inline-start" id="add-item">
               <PlusIcon />
               Add item
             </Button>

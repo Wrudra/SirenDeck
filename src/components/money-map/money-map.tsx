@@ -123,9 +123,12 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
   const activeRect = activeId ? (rectById.get(activeId) ?? null) : null;
   const activeItem = activeId ? (itemById.get(activeId) ?? null) : null;
 
+  const empty = items.length === 0;
+
   return (
     <MotionConfig reducedMotion="user">
       <div className="flex min-h-0 flex-1 flex-col">
+        {!empty && (
         <div className="flex items-center justify-end gap-1 px-4 pt-2" role="group" aria-label="Grouping">
           {(["flat", "category"] as const).map((mode) => (
             <button
@@ -149,7 +152,33 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
             </button>
           ))}
         </div>
+        )}
 
+        {empty ? (
+          <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+            <div className="flex max-w-sm flex-col items-center gap-3 text-center">
+              <div aria-hidden className="grid aspect-[16/7] w-full grid-cols-4 grid-rows-2 gap-1 rounded-[var(--radius-tile)] border border-dashed border-border-subtle p-1">
+                <div className="col-span-2 rounded-[var(--radius-tile)] bg-surface-2" />
+                <div className="rounded-[var(--radius-tile)] bg-surface-2" />
+                <div className="rounded-[var(--radius-tile)] bg-surface-2" />
+                <div className="rounded-[var(--radius-tile)] bg-surface-2" />
+                <div className="col-span-2 rounded-[var(--radius-tile)] bg-surface-2" />
+                <div className="rounded-[var(--radius-tile)] bg-surface-2" />
+              </div>
+              <h2 className="mt-3 text-lg font-semibold">Your map starts with one item</h2>
+              <p className="text-sm leading-relaxed text-ink-muted" style={{ textWrap: "pretty" }}>
+                Add a subscription, bill or document renewal. Tile size is what it costs you a year.
+                Color is how soon it lands.
+              </p>
+              <a
+                href="#add-item"
+                className="mt-2 rounded-[var(--radius-control)] bg-cta px-3 py-2 text-sm font-semibold text-cta-ink transition-transform duration-300 ease-[var(--ease-fluid)] hover:scale-[1.01] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                Add your first item
+              </a>
+            </div>
+          </div>
+        ) : (
         <div
           ref={ref}
           className="relative min-h-0 flex-1 overflow-hidden"
@@ -250,6 +279,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
             canvasWidth={container?.w ?? 0}
           />
         </div>
+        )}
 
         <UnpricedShelf items={model.shelf} onAddCost={openEdit} />
 
