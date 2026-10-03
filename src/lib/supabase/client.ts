@@ -1,5 +1,6 @@
 import { createBrowserClient } from "@supabase/ssr";
 
+import type { Database } from "@/lib/database.types";
 import { getSupabasePublishableKey, getSupabaseUrl } from "./env";
 
 /**
@@ -7,5 +8,8 @@ import { getSupabasePublishableKey, getSupabaseUrl } from "./env";
  * stores the session in cookies, safe for SSR + client navigation).
  */
 export function createClient() {
-  return createBrowserClient(getSupabaseUrl(), getSupabasePublishableKey());
+  return createBrowserClient<Database>(
+    getSupabaseUrl(),
+    getSupabasePublishableKey(),
+  );
 }
