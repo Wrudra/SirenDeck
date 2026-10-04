@@ -42,31 +42,31 @@ function urgencyOf(daysLeft: number): UrgencyLevel {
   ).level;
 }
 
-/** Ink shade per urgency · the landing demo runs the real ramp. */
+/** Heatmap shade per urgency · matches the Money Map surface. */
 const SHADE: Record<UrgencyLevel, string> = {
-  calm: "var(--urgency-calm)",
-  soon: "var(--urgency-soon)",
-  urgent: "var(--urgency-urgent)",
-  critical: "var(--urgency-critical)",
-  overdue: "var(--urgency-overdue)",
+  calm: "var(--heat-calm)",
+  soon: "var(--heat-soon)",
+  urgent: "var(--heat-urgent)",
+  critical: "var(--heat-critical)",
+  overdue: "var(--heat-overdue)",
 };
 
-/** On-shade text per family. */
+/** White text on every urgency · TradingView-style heatmap. */
 const SHADE_TEXT: Record<UrgencyLevel, string> = {
-  calm: "var(--on-calm)",
-  soon: "var(--on-soon)",
-  urgent: "var(--on-urgent)",
-  critical: "var(--on-critical)",
-  overdue: "var(--on-overdue)",
+  calm: "var(--heat-ink)",
+  soon: "var(--heat-ink)",
+  urgent: "var(--heat-ink)",
+  critical: "var(--heat-ink)",
+  overdue: "var(--heat-ink)",
 };
 
 /** Small chips beside rows: text-safe twins. */
 const TEXT_TONE: Record<UrgencyLevel, string> = {
-  calm: "var(--urgency-calm-text)",
-  soon: "var(--urgency-soon-text)",
-  urgent: "var(--urgency-urgent-text)",
-  critical: "var(--urgency-critical-text)",
-  overdue: "var(--urgency-overdue-text)",
+  calm: "var(--heat-calm)",
+  soon: "var(--heat-soon)",
+  urgent: "var(--heat-urgent)",
+  critical: "var(--heat-critical)",
+  overdue: "var(--heat-overdue)",
 };
 
 function daysWord(d: number): string {
@@ -124,72 +124,74 @@ export function DepartureBoard() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="border border-rule bg-surface">
-        {/* ledger header rail */}
-        <div className="flex items-center justify-between border-b border-rule px-4 py-2.5">
-          <p className="ledger-cap text-[10px] text-ink-muted">
+      <div className="overflow-hidden border border-rule bg-heat-bg">
+        {/* heatmap header rail */}
+        <div className="flex items-center justify-between border-b border-heat-rule px-4 py-2.5">
+          <p className="ledger-cap text-[10px] text-heat-ink-muted">
             Entries: renewals &amp; expiries
           </p>
-          <p className="ledger-cap text-[10px] text-ink-muted">Synthetic</p>
+          <p className="ledger-cap text-[10px] text-heat-ink-muted">Synthetic</p>
         </div>
 
         <div className="grid md:grid-cols-[3fr_2fr]">
           {/* the map: sized by cost, shaded by urgency */}
           <div
             aria-hidden
-            className="relative aspect-[12/5] overflow-hidden border-b border-rule md:border-b-0 md:border-r"
+            className="relative aspect-[12/5] gap-px bg-heat-rule p-px md:border-r md:border-heat-rule"
           >
-            {rects.map(
-              (r) =>
-                r && (
-                  <motion.div
-                    key={r.id}
-                    layout={!reduced}
-                    className="absolute p-1.5"
-                    style={{
-                      left: `${r.left}%`,
-                      top: `${r.top}%`,
-                      width: `${r.width}%`,
-                      height: `${r.height}%`,
-                      backgroundColor: SHADE[r.urgency],
-                      color: SHADE_TEXT[r.urgency],
-                    }}
-                    transition={RANK_SPRING}
-                  >
-                    {r.width > 14 && r.height > 30 && (
-                      <>
-                        <p className="truncate text-[11px] leading-tight font-medium">{r.title}</p>
-                        <p
-                          className="tabular absolute right-1.5 bottom-1 text-[10px] opacity-75"
-                          style={{ fontFamily: "var(--font-mono-var)" }}
-                        >
-                          {fmtBDT(r.cost)}
-                        </p>
-                      </>
-                    )}
-                  </motion.div>
-                ),
-            )}
+            <div className="relative h-full w-full">
+              {rects.map(
+                (r) =>
+                  r && (
+                    <motion.div
+                      key={r.id}
+                      layout={!reduced}
+                      className="absolute p-1.5"
+                      style={{
+                        left: `${r.left}%`,
+                        top: `${r.top}%`,
+                        width: `calc(${r.width}% - 1px)`,
+                        height: `calc(${r.height}% - 1px)`,
+                        backgroundColor: SHADE[r.urgency],
+                        color: SHADE_TEXT[r.urgency],
+                      }}
+                      transition={RANK_SPRING}
+                    >
+                      {r.width > 14 && r.height > 30 && (
+                        <>
+                          <p className="truncate text-[11px] leading-tight font-semibold">{r.title}</p>
+                          <p
+                            className="tabular absolute right-1.5 bottom-1 text-[10px] opacity-80"
+                            style={{ fontFamily: "var(--font-mono-var)" }}
+                          >
+                            {fmtBDT(r.cost)}
+                          </p>
+                        </>
+                      )}
+                    </motion.div>
+                  ),
+              )}
+            </div>
           </div>
 
           {/* the ranked rows: what leaves soonest, reranking in place */}
-          <div aria-hidden className="flex flex-col justify-between p-2">
+          <div aria-hidden className="flex flex-col justify-between gap-px bg-heat-rule p-px">
             {ranked.map((item) => (
               <motion.div
                 key={item.id}
                 layout={!reduced}
                 transition={RANK_SPRING}
-                className="grid grid-cols-[1fr_auto_auto] items-baseline gap-3 border-b border-rule px-2 py-1.5 last:border-b-0"
+                className="grid grid-cols-[1fr_auto_auto] items-baseline gap-3 bg-heat-bg px-3 py-2"
               >
-                <span className="truncate text-[13px]">{item.title}</span>
+                <span className="truncate text-[13px] text-heat-ink">{item.title}</span>
                 <span
-                  className="tabular text-[12px] font-medium"
+                  className="tabular text-[12px] font-semibold"
                   style={{ color: TEXT_TONE[item.urgency], fontFamily: "var(--font-mono-var)" }}
                 >
                   {daysWord(item.daysLeft)}
                 </span>
                 <span
-                  className="tabular w-14 text-right text-[12px] text-ink-muted"
+                  className="tabular w-14 text-right text-[12px] text-heat-ink-muted"
                   style={{ fontFamily: "var(--font-mono-var)" }}
                 >
                   {fmtBDT(item.cost)}
@@ -199,11 +201,11 @@ export function DepartureBoard() {
           </div>
         </div>
 
-        {/* ledger footer: the reading key */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-rule px-4 py-2">
-          <span className="ledger-cap text-[9px] text-ink-muted">Entry size = yearly cost</span>
-          <span className="ledger-cap text-[9px] text-ink-muted">Shade = urgency</span>
-          <span className="ledger-cap ml-auto text-[9px] text-ink-muted">Rows rank by due date</span>
+        {/* heatmap footer: the reading key */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-heat-rule px-4 py-2">
+          <span className="ledger-cap text-[9px] text-heat-ink-muted">Tile size = yearly cost</span>
+          <span className="ledger-cap text-[9px] text-heat-ink-muted">Color = urgency</span>
+          <span className="ledger-cap ml-auto text-[9px] text-heat-ink-muted">Rows rank by due date</span>
         </div>
       </div>
     </MotionConfig>

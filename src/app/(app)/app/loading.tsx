@@ -15,19 +15,19 @@ export default function AppLoading() {
         </div>
         <div className="h-7 w-24 animate-pulse rounded-[var(--radius-control)] bg-surface-2" />
       </div>
-      {/* map skeleton · dark sector bars over dense tiles */}
-      <div className="flex min-h-0 flex-1 flex-col gap-0.5 p-0.5" aria-hidden>
-        <div className="flex h-5 items-center justify-between bg-ink/90 px-2">
-          <span className="h-1.5 w-20 animate-pulse rounded-[1px] bg-cta-ink/30" />
-          <span className="h-1.5 w-12 animate-pulse rounded-[1px] bg-cta-ink/20" />
+      {/* map skeleton · dark sector bars over dense heatmap tiles */}
+      <div className="flex min-h-0 flex-1 flex-col gap-px bg-heat-bg p-px" aria-hidden>
+        <div className="flex h-5 items-center justify-between bg-ink px-2">
+          <span className="h-1.5 w-20 animate-pulse rounded-[1px] bg-heat-ink/30" />
+          <span className="h-1.5 w-12 animate-pulse rounded-[1px] bg-heat-ink/20" />
         </div>
-        <div className="grid flex-1 grid-cols-4 grid-rows-3 gap-0.5">
-          <div className="col-span-2 row-span-2 animate-pulse bg-urgency-urgent" />
-          <div className="col-span-2 animate-pulse bg-urgency-calm" />
-          <div className="animate-pulse bg-urgency-soon" />
-          <div className="animate-pulse bg-urgency-critical" />
-          <div className="col-span-2 animate-pulse bg-urgency-calm" />
-          <div className="animate-pulse bg-urgency-calm" />
+        <div className="grid flex-1 grid-cols-4 grid-rows-3 gap-px">
+          <div className="col-span-2 row-span-2 animate-pulse bg-heat-overdue" />
+          <div className="col-span-2 animate-pulse bg-heat-calm" />
+          <div className="animate-pulse bg-heat-soon" />
+          <div className="animate-pulse bg-heat-critical" />
+          <div className="col-span-2 animate-pulse bg-heat-calm" />
+          <div className="animate-pulse bg-heat-soon" />
         </div>
       </div>
       {/* summary strip skeleton */}

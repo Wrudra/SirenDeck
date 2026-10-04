@@ -46,25 +46,25 @@ export function MapTooltip({
         exit={{ opacity: 0 }}
         transition={{ duration: 0.15 }}
         className={cn(
-          "pointer-events-none absolute z-30 w-60 rounded-[var(--radius-control)] border border-ink bg-surface p-3",
-          "shadow-[0_8px_24px_rgb(20_19_17/0.16),0_2px_8px_rgb(20_19_17/0.10)]",
+          "pointer-events-none absolute z-30 w-60 rounded-[var(--radius-control)] border border-ink/20 bg-heat-bg p-3 text-heat-ink",
+          "shadow-[0_8px_24px_rgb(0_0_0/0.55),0_2px_8px_rgb(0_0_0/0.40)]",
         )}
         style={{ left, top, width }}
       >
         <p className="text-sm font-medium">{item.title}</p>
-        <p className="mt-0.5 text-xs text-ink-muted">{category?.name ?? "Uncategorized"}</p>
+        <p className="mt-0.5 text-xs text-heat-ink-muted">{category?.name ?? "Uncategorized"}</p>
         <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-          <dt className="text-ink-muted">Yearly</dt>
+          <dt className="text-heat-ink-muted">Yearly</dt>
           <dd className="tabular text-right" style={{ fontFamily: "var(--font-mono-var)" }}>
             {yearCost ?? "·"}
           </dd>
-          <dt className="text-ink-muted">Due</dt>
+          <dt className="text-heat-ink-muted">Due</dt>
           <dd className="tabular text-right" style={{ fontFamily: "var(--font-mono-var)" }}>
             {item.dueDate}
           </dd>
-          <dt className="text-ink-muted">Urgency</dt>
+          <dt className="text-heat-ink-muted">Urgency</dt>
           <dd className="text-right">{daysLabel(item.daysLeft)}</dd>
-          <dt className="text-ink-muted">Renews</dt>
+          <dt className="text-heat-ink-muted">Renews</dt>
           <dd className="text-right">{item.autoRenews ? "Auto" : "Manual"}</dd>
         </dl>
       </motion.div>

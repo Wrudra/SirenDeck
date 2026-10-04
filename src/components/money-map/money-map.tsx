@@ -119,20 +119,22 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
       <div className="flex min-h-0 flex-1 flex-col">
         {empty ? (
           <div className="flex min-h-0 flex-1 items-center justify-center p-6">
-            <div className="flex max-w-sm flex-col items-center gap-3 text-center">
-              <div aria-hidden className="grid aspect-[16/7] w-full grid-cols-4 grid-rows-2 gap-0.5 border border-dashed border-rule p-1">
-                <div className="col-span-2 bg-surface-2" />
-                <div className="bg-surface-2" />
-                <div className="bg-surface-2" />
-                <div className="bg-surface-2" />
-                <div className="col-span-2 bg-surface-2" />
-                <div className="bg-surface-2" />
+            <div className="flex max-w-md flex-col items-center gap-3 text-center">
+              <div aria-hidden className="grid aspect-[16/7] w-full grid-cols-4 grid-rows-2 gap-px overflow-hidden border border-heat-rule bg-heat-bg p-1">
+                <div className="col-span-2 row-span-2 bg-heat-overdue" />
+                <div className="bg-heat-urgent" />
+                <div className="bg-heat-calm" />
+                <div className="bg-heat-soon" />
+                <div className="bg-heat-critical" />
+                <div className="bg-heat-calm" />
+                <div className="bg-heat-soon" />
+                <div className="bg-heat-urgent" />
               </div>
               <p className="ledger-cap mt-3 text-[11px] text-ink-muted">The ledger is blank</p>
               <h2 className="font-display text-2xl font-semibold text-ink">Your map starts with one entry</h2>
               <p className="text-sm leading-relaxed text-ink-muted" style={{ textWrap: "pretty" }}>
-                Add a subscription, bill or document renewal. Entry size is what it costs you a year.
-                Shade is how soon it comes due.
+                Add a subscription, bill or document renewal. Tile size is what it costs you a year.
+                Color is how soon it comes due: green is calm, red is past due.
               </p>
               <ItemFormDialog
                 categories={categories}
@@ -150,7 +152,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
         ) : (
         <div
           ref={ref}
-          className="relative min-h-0 flex-1 overflow-hidden p-0.5"
+          className="relative min-h-0 flex-1 overflow-hidden bg-heat-bg p-px"
           aria-label="Money Map: treemap of items sized by yearly cost, colored by urgency. Full list follows."
         >
           {groupRects && (
@@ -164,12 +166,6 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                   (s, it) => s + (it.yearCost ?? 0),
                   0,
                 );
-                const groupSoonest = groupItems.length
-                  ? groupItems.reduce(
-                      (a, b) => (a.daysLeft <= b.daysLeft ? a : b),
-                      groupItems[0],
-                    )
-                  : null;
                 const groupCurrency = groupItems[0]?.currency ?? "BDT";
                 return (
                   <section
@@ -181,7 +177,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                     <header
                       className={cn(
                         "ledger-cap absolute inset-x-0 top-0 z-10 flex h-5 items-center justify-between gap-2 px-2",
-                        "bg-ink text-cta-ink",
+                        "bg-ink text-heat-ink",
                       )}
                     >
                       <span className="truncate text-[9px] tracking-[0.12em]">
@@ -192,14 +188,6 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                         <span className="opacity-90">{formatCost(groupYearly, groupCurrency)}</span>
                       </span>
                     </header>
-                    {groupSoonest && (
-                      <span
-                        className="ledger-cap absolute right-2 top-6 z-10 hidden text-[9px] text-ink-muted md:block"
-                        title={daysLabel(groupSoonest.daysLeft)}
-                      >
-                        next: {daysLabel(groupSoonest.daysLeft)}
-                      </span>
-                    )}
                     {group.children.map((child, i) => {
                       const item = itemById.get(child.id);
                       if (!item) return null;
