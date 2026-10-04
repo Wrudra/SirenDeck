@@ -26,7 +26,7 @@ import type { CategoryRow, ItemRow } from "@/lib/validation/item";
 
 const SNOOZE_OPTIONS = [1, 3, 7, 14, 30] as const;
 
-/** Ink shade swatch per urgency — lightness is urgency. */
+/** Ink shade swatch per urgency · lightness is urgency. */
 const URGENCY_SWATCH: Record<UrgencyLevel, string> = {
   calm: "bg-urgency-calm",
   soon: "bg-urgency-soon",
@@ -52,7 +52,7 @@ function daysLabel(daysLeft: number): string {
 }
 
 /** Weight ramps inside the action horizon; quiet ink beyond it.
-    Overdue gets the full-ink chip — the row alarm. */
+    Overdue gets the full-ink chip · the row alarm. */
 function chipClasses(urgency: UrgencyLevel, daysLeft: number): string {
   const inHorizon = daysLeft <= 14;
   if (urgency === "overdue") return "text-urgency-overdue-text";
@@ -141,7 +141,7 @@ export function ItemList({
                   className="tabular text-sm"
                   style={{ fontFamily: "var(--font-mono-var)" }}
                 >
-                  {cost ?? "—"}
+                  {cost ?? "·"}
                 </span>
                 <span
                   className={`tabular text-xs font-semibold ${chipClasses(urgency.level, urgency.daysLeft)}`}

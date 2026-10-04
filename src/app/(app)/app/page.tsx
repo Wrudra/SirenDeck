@@ -23,7 +23,7 @@ export default async function AppPage({
   const params = await searchParams;
   const filters = parseFilters(params);
   const view = typeof params.view === "string" ? params.view : null;
-  // No explicit view: CSS decides — board list under md, Money Map at md+.
+  // No explicit view: CSS decides · board list under md, Money Map at md+.
   const isList = view === "list";
   const isMap = view === "map";
 
@@ -67,7 +67,7 @@ export default async function AppPage({
       ) : isMap ? (
         <MoneyMap items={items} categories={categories} />
       ) : (
-        /* No explicit view: CSS decides — board list under md, Money Map at md+.
+        /* No explicit view: CSS decides · board list under md, Money Map at md+.
            Both render; each is display:none outside its breakpoint. */
         <>
           <div className="flex min-h-0 flex-1 flex-col md:hidden">

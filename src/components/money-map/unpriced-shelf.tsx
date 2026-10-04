@@ -13,7 +13,7 @@ function urgencyVar(urgency: MapItem["urgency"]): string {
 
 /**
  * Unpriced shelf: waiting-room chips with urgency dots, "Add cost" action.
- * These items have no area yet — they wait at the bottom of the board until
+ * These items have no area yet · they wait at the bottom of the board until
  * priced.
  */
 export function UnpricedShelf({

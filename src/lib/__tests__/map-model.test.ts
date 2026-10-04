@@ -54,7 +54,7 @@ describe("buildMapModel", () => {
   });
 
   it("merges long tail beyond the cap into Other with summed cost", () => {
-    // items i0..i44 (45 total), amounts 100..56 — cap keeps i0..i39, merges i40..i44
+    // items i0..i44 (45 total), amounts 100..56 · cap keeps i0..i39, merges i40..i44
     const items = Array.from({ length: TILE_CAP + 5 }, (_, i) =>
       item({ id: `i${i}`, amount: String(100 - i) }),
     );

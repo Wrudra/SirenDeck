@@ -112,7 +112,7 @@ export function SummaryStrip({ model }: { model: MapModel }) {
           <SummaryMetric
             label="Yearly"
             value={line.totalYearly}
-            format={(v) => formatCost(v, currency) ?? "—"}
+            format={(v) => formatCost(v, currency) ?? "·"}
           />
           <SummaryMetric
             label="Next 30d"

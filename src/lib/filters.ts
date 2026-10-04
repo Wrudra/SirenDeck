@@ -32,7 +32,7 @@ const uuidSchema = z.string().uuid();
 
 /**
  * Parses raw URL search params into validated filters. Invalid or unknown
- * values fall back to defaults rather than erroring — filter URLs are
+ * values fall back to defaults rather than erroring · filter URLs are
  * shareable and must not 500 on hand-edited params.
  */
 export function parseFilters(
@@ -67,7 +67,7 @@ export function hasActiveFilters(filters: ItemFilters): boolean {
   );
 }
 
-/** Window match — overdue items always pass any finite window. */
+/** Window match · overdue items always pass any finite window. */
 function matchesWindow(item: ItemRow, window: WindowValue, now: Date): boolean {
   if (window === "all") return true;
   return getUrgency(item.due_date, now).daysLeft <= Number(window);

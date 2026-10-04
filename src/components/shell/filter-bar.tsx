@@ -240,7 +240,7 @@ export function FilterBar({
         )}
       </div>
 
-      {/* applied chips — visible on small screens where selects may scroll away */}
+      {/* applied chips · visible on small screens where selects may scroll away */}
       {chips.length > 0 && (
         <ul className="hidden items-center gap-1 md:flex" aria-label="Applied filters">
           {chips.map((chip) => (

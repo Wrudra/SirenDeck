@@ -3,7 +3,7 @@ import { z } from "zod";
 /**
  * Application-level enums. These mirror the Postgres CHECK constraints on
  * `public.items` (see migration 20261003211351_phase_2_schema.sql). Keep in
- * sync — drift between the two will surface as 400 errors at insert time.
+ * sync · drift between the two will surface as 400 errors at insert time.
  */
 export const RECURRENCES = ["none", "weekly", "monthly", "quarterly", "yearly"] as const;
 export const STATUSES = ["active", "snoozed", "done", "archived"] as const;

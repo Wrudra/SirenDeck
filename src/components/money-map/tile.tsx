@@ -15,7 +15,7 @@ export const URGENCY_FILL: Record<UrgencyLevel, string> = {
   overdue: "bg-urgency-overdue text-on-overdue",
 };
 
-/** Print world: no pulse — solid ink is the alarm. Kept for API parity. */
+/** Print world: no pulse · solid ink is the alarm. Kept for API parity. */
 export const URGENCY_PULSE: Record<UrgencyLevel, string> = {
   calm: "",
   soon: "",
@@ -24,16 +24,7 @@ export const URGENCY_PULSE: Record<UrgencyLevel, string> = {
   overdue: "",
 };
 
-/** Days-badge tint per family: ink wash on light shades, paper wash on dark. */
-const BADGE_TINT: Record<UrgencyLevel, string> = {
-  calm: "color-mix(in oklab, #141311 14%, transparent)",
-  soon: "color-mix(in oklab, #141311 12%, transparent)",
-  urgent: "color-mix(in oklab, #141311 10%, transparent)",
-  critical: "color-mix(in oklab, #f7f5f0 20%, transparent)",
-  overdue: "color-mix(in oklab, #f7f5f0 24%, transparent)",
-};
-
-/** Spring for tile reflow — the authored rerank moment. */
+/** Spring for tile reflow · the authored rerank moment. */
 export const SMOOTH_SPRING = { type: "spring", stiffness: 260, damping: 30, mass: 1 } as const;
 
 export function daysLabel(daysLeft: number): string {
@@ -54,7 +45,7 @@ interface TileProps {
   daysLeft: number;
   urgency: UrgencyLevel;
   icon: LucideIcon | null;
-  /** the soonest due item on the board — gets the ink anchor ring */
+  /** the soonest due item on the board · gets the ink anchor ring */
   isSoonest?: boolean;
   /** entrance stagger index (largest-first = 0); undefined = no entrance */
   index?: number;
@@ -86,7 +77,9 @@ function TileInner({
 }: TileProps) {
   const reduced = useReducedMotion();
   const showLabels = width >= LABEL_MIN_W && height >= LABEL_MIN_H;
-  const showMoney = showLabels;
+  const showSubhead = width >= 70 && height >= 60;
+  const showDays = showLabels;
+  const showCost = showLabels;
   const showIcon = width >= 56 && height >= 32;
   const label = `${title}${cost ? `, ${cost} per year` : ""}, ${daysLabel(daysLeft)}`;
 
@@ -112,7 +105,7 @@ function TileInner({
       className={cn(
         "group absolute flex cursor-pointer flex-col overflow-hidden rounded-[var(--radius-tile)] border p-1.5 text-left outline-none",
         isSoonest
-          ? "border-ink ring-2 ring-ink ring-offset-1 ring-offset-bg"
+          ? "border-ink ring-1 ring-ink ring-offset-1 ring-offset-bg"
           : "border-ink/20 hover:border-ink/45",
         "focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-ink/50",
         "hover:z-20 focus-visible:z-20",
@@ -121,32 +114,48 @@ function TileInner({
       )}
       style={{ left: x, top: y, width, height }}
     >
-      {showIcon && Icon != null && (
-        <Icon
+      {showSubhead && (
+        <span
+          className="ledger-cap pointer-events-none truncate text-[8px] tracking-[0.1em] opacity-70"
           aria-hidden
-          className="pointer-events-none absolute right-1.5 top-1.5 size-4 opacity-50"
-        />
+        >
+          {urgency === "overdue"
+            ? "OVERDUE"
+            : urgency === "critical"
+              ? "CRITICAL"
+              : urgency === "urgent"
+                ? "URGENT"
+                : urgency === "soon"
+                  ? "SOON"
+                  : "CALM"}
+        </span>
       )}
       {showLabels && (
-        <span className="pointer-events-none mt-0.5 line-clamp-2 text-[13px] leading-[1.25] font-medium">
+        <span className="pointer-events-none line-clamp-2 text-[13px] leading-[1.2] font-semibold tracking-[-0.005em]">
           {title}
         </span>
       )}
-      {showMoney && cost && (
+      {showCost && cost && (
         <span
-          className="tabular pointer-events-none mt-auto text-xs"
+          className="tabular pointer-events-none mt-auto text-[10px] opacity-75"
           style={{ fontFamily: "var(--font-mono-var)" }}
         >
           {cost}
         </span>
       )}
-      {showLabels && (
+      {showDays && (
         <span
-          className="tabular pointer-events-none absolute bottom-1.5 left-1.5 rounded-[var(--radius-tile)] px-1.5 py-0.5 text-[10px] font-medium"
-          style={{ backgroundColor: BADGE_TINT[urgency] }}
+          className="tabular pointer-events-none absolute bottom-1 right-1.5 text-[11px] font-semibold tracking-tight"
+          style={{ fontFamily: "var(--font-mono-var)" }}
         >
           {daysLabel(daysLeft)}
         </span>
+      )}
+      {showIcon && Icon != null && (
+        <Icon
+          aria-hidden
+          className="pointer-events-none absolute right-1.5 top-1.5 size-3.5 opacity-40"
+        />
       )}
     </motion.button>
   );

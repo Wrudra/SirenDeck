@@ -47,7 +47,7 @@ function toRect(node: D3Node): TileRect {
 }
 
 /**
- * Squarified treemap layout for a flat list of tiles (math only — no DOM).
+ * Squarified treemap layout for a flat list of tiles (math only · no DOM).
  * Values must be > 0; filter before calling.
  */
 export function layoutFlat(

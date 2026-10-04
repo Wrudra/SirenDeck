@@ -95,7 +95,7 @@ export async function addItem(
     return { ok: false, error: "Could not save the item. Please try again." };
   }
 
-  // Default reminder offsets (spec: 30, 7, 1). Failures are non-fatal —
+  // Default reminder offsets (spec: 30, 7, 1). Failures are non-fatal ·
   // the item exists; reminders can be managed later.
   await supabase.from("reminders").insert(
     ([30, 7, 1] as const).map((days_before) => ({

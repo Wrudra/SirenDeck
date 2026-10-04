@@ -7,7 +7,7 @@ import { ListIcon, MapIcon } from "lucide-react";
 
 /**
  * View tabs. Explicit ?view= wins; with no param the default is
- * viewport-dependent — board list under md, Money Map at md+ (matches the
+ * viewport-dependent · board list under md, Money Map at md+ (matches the
  * CSS dual-render in the page). Resolved after mount to avoid SSR mismatch;
  * until then explicit views still style correctly.
  */

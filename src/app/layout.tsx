@@ -22,11 +22,11 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: { default: "SirenDeck", template: "%s · SirenDeck" },
   description:
-    "Track everything that expires, renews, or comes due — one map, one glance.",
+    "Track everything that expires, renews, or comes due. One map, one glance.",
   openGraph: {
     title: "SirenDeck",
     description:
-      "Track everything that expires, renews, or comes due — one map, one glance.",
+      "Track everything that expires, renews, or comes due. One map, one glance.",
     type: "website",
   },
 };

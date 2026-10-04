@@ -35,7 +35,7 @@ export interface SummaryLine {
 }
 
 export interface MapModel {
-  /** priced items, largest-first — tile render order (stagger largest first) */
+  /** priced items, largest-first · tile render order (stagger largest first) */
   tiles: MapItem[];
   /** merged long-tail tile, present when priced items exceed the cap */
   other: OtherTile | null;
@@ -81,7 +81,7 @@ function byShelfOrder(a: MapItem, b: MapItem): number {
 }
 
 /**
- * Derives the Money Map view model. Pure — same input, same output.
+ * Derives the Money Map view model. Pure · same input, same output.
  * `now` and `tileCap` are injectable for tests / "Other" expansion.
  */
 export function buildMapModel(

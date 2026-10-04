@@ -56,7 +56,7 @@ export function MapTooltip({
         <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
           <dt className="text-ink-muted">Yearly</dt>
           <dd className="tabular text-right" style={{ fontFamily: "var(--font-mono-var)" }}>
-            {yearCost ?? "—"}
+            {yearCost ?? "·"}
           </dd>
           <dt className="text-ink-muted">Due</dt>
           <dd className="tabular text-right" style={{ fontFamily: "var(--font-mono-var)" }}>

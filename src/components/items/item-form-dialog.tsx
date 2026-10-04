@@ -39,7 +39,7 @@ export interface ItemFormDialogProps {
   categories: CategoryRow[];
   trigger?: React.ReactNode;
   item?: ItemFormValues;
-  /** controlled open — useful when opening from a map tile click */
+  /** controlled open · useful when opening from a map tile click */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
@@ -77,7 +77,7 @@ export function ItemFormDialog({
   const uid = useId();
 
   // Wrap the server action so success handling (close + toast) happens in the
-  // same async flow — avoids a setState-in-effect cascade.
+  // same async flow · avoids a setState-in-effect cascade.
   const [state, formAction, pending] = useActionState(
     async (prev: ActionState, formData: FormData) => {
       const result = await (isEdit ? updateItem : addItem)(prev, formData);

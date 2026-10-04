@@ -9,7 +9,7 @@ import { getUrgency, type UrgencyLevel } from "@/lib/urgency";
 /**
  * Synthetic demo board for the landing hero. Real layout math (d3-hierarchy),
  * fake data, a clock that advances every few seconds: shades deepen along the
- * five-step ink ramp and rows rerank in place. Labeled synthetic — the
+ * five-step ink ramp and rows rerank in place. Labeled synthetic · the
  * mechanism demonstrated, not described.
  */
 
@@ -42,7 +42,7 @@ function urgencyOf(daysLeft: number): UrgencyLevel {
   ).level;
 }
 
-/** Ink shade per urgency — the landing demo runs the real ramp. */
+/** Ink shade per urgency · the landing demo runs the real ramp. */
 const SHADE: Record<UrgencyLevel, string> = {
   calm: "var(--urgency-calm)",
   soon: "var(--urgency-soon)",
@@ -128,7 +128,7 @@ export function DepartureBoard() {
         {/* ledger header rail */}
         <div className="flex items-center justify-between border-b border-rule px-4 py-2.5">
           <p className="ledger-cap text-[10px] text-ink-muted">
-            Entries — renewals &amp; expiries
+            Entries: renewals &amp; expiries
           </p>
           <p className="ledger-cap text-[10px] text-ink-muted">Synthetic</p>
         </div>

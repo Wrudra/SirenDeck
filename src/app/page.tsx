@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "SirenDeck — see everything that renews, before it costs you",
+  title: "SirenDeck: see everything that renews, before it costs you",
   description:
     "One map of every subscription, bill, insurance, domain and document renewal. Sized by cost, shaded by urgency. Know what is due and what it costs you, at a glance.",
 };
@@ -100,7 +100,7 @@ export default async function Home() {
       </header>
 
       <main>
-        {/* ── Hero: the front page — serif manifesto over the living ledger ── */}
+        {/* ── Hero: the front page · serif manifesto over the living ledger ── */}
         <section className="mx-auto max-w-6xl px-6 pt-20 pb-14 md:pt-28">
           <div className="grid items-end gap-10 lg:grid-cols-[1.15fr_1fr]">
             <Reveal>
@@ -115,8 +115,8 @@ export default async function Home() {
                 style={{ textWrap: "pretty" }}
               >
                 SirenDeck keeps a ledger of your money&rsquo;s deadlines. Each entry is sized
-                by what it costs you a year and shaded by how soon it comes due —
-                the nearer the date, the darker the ink. What renews soon sits
+                by what it costs you a year and shaded by how soon it comes due.
+                The nearer the date, the darker the ink. What renews soon sits
                 at the top of the page, already ranked.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -139,13 +139,13 @@ export default async function Home() {
             </Reveal>
           </div>
 
-          {/* the board is the demo — live, synthetic, labeled */}
+          {/* the board is the demo · live, synthetic, labeled */}
           <Reveal delayMs={140} className="mt-14">
             <DepartureBoard />
           </Reveal>
         </section>
 
-        {/* ── The ramp: five shades, fixed — the second beat ──────────── */}
+        {/* ── The ramp: five shades, fixed · the second beat ──────────── */}
         <section aria-labelledby="ramp-title" className="border-t-2 border-ink">
           <div className="mx-auto max-w-6xl px-6 py-24">
             <Reveal as="h2" id="ramp-title" className="ledger-cap text-[11px] text-ink-muted">
@@ -169,7 +169,7 @@ export default async function Home() {
             </ol>
             <p className="mt-6 max-w-[520px] text-sm leading-relaxed text-ink-muted" style={{ textWrap: "pretty" }}>
               Urgency is printed in ink, not alarm colors. The nearer a deadline,
-              the darker its shade — past due is solid ink, impossible to miss
+              the darker its shade. Past due is solid ink, impossible to miss
               and impossible to misread.
             </p>
           </div>
@@ -184,7 +184,7 @@ export default async function Home() {
               </h2>
               <p className="mt-4 max-w-[420px] text-base leading-relaxed text-ink-muted" style={{ textWrap: "pretty" }}>
                 First salaries arrive with obligations attached. Insurance,
-                domains, documents, the quiet subscriptions — they all enter the
+                domains, documents, the quiet subscriptions: they all enter the
                 same ledger, wear the same shades, answer the same glance.
               </p>
             </Reveal>
