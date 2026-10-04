@@ -22,7 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { addItem, idleState, updateItem, type ActionState } from "@/lib/actions/items";
+import { addItem, updateItem } from "@/lib/actions/items";
+import { idleState, type ActionState } from "@/lib/actions/types";
 import type { CategoryRow } from "@/lib/validation/item";
 import { CURRENCIES, RECURRENCES } from "@/lib/validation/item";
 

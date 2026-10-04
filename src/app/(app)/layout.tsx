@@ -1,4 +1,5 @@
 import { TopBar } from "@/components/shell/top-bar";
+import { Toaster } from "@/components/ui/sonner";
 
 import { requireUser } from "@/lib/supabase/require-user";
 
@@ -14,6 +15,7 @@ export default async function AppLayout({
     <div className="flex h-dvh flex-col">
       <TopBar email={email} />
       <main id="main-content" className="flex flex-1 flex-col overflow-hidden">{children}</main>
+      <Toaster position="bottom-right" />
     </div>
   );
 }

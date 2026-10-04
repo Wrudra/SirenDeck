@@ -4,7 +4,8 @@ import { ItemFormDialog } from "@/components/items/item-form-dialog";
 import { ItemList } from "@/components/items/item-list";
 import { MoneyMap } from "@/components/money-map/money-map";
 import { FilterBar } from "@/components/shell/filter-bar";
-import { ListIcon, MapIcon, PlusIcon } from "lucide-react";
+import { ViewTabs } from "@/components/shell/view-tabs";
+import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getOrSeedCategories } from "@/lib/categories";
 import { applyFilters, hasActiveFilters, parseFilters } from "@/lib/filters";
@@ -21,8 +22,10 @@ export default async function AppPage({
   const { user, supabase } = await requireUser();
   const params = await searchParams;
   const filters = parseFilters(params);
-  const view = typeof params.view === "string" ? params.view : "map";
+  const view = typeof params.view === "string" ? params.view : null;
+  // No explicit view: CSS decides — board list under md, Money Map at md+.
   const isList = view === "list";
+  const isMap = view === "map";
 
   const [categories, itemsResult] = await Promise.all([
     getOrSeedCategories(supabase, user.id),
@@ -44,33 +47,8 @@ export default async function AppPage({
         shownCount={items.length}
         totalCount={allItems.length}
       />
-      <div className="flex items-center justify-between gap-3 border-b border-border-subtle px-4 py-2">
-        <div role="tablist" aria-label="View" className="flex items-center gap-1">
-          <Link
-            href={linkFor("/app", params)}
-            aria-current={!isList ? "page" : undefined}
-            className={`inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-control)] border px-2.5 text-xs transition-colors ${
-              !isList
-                ? "border-border-subtle bg-surface-2 text-ink"
-                : "border-transparent text-ink-muted hover:text-ink"
-            }`}
-          >
-            <MapIcon className="size-3.5" aria-hidden />
-            Map
-          </Link>
-          <Link
-            href={linkFor("/app?view=list", params)}
-            aria-current={isList ? "page" : undefined}
-            className={`inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-control)] border px-2.5 text-xs transition-colors ${
-              isList
-                ? "border-border-subtle bg-surface-2 text-ink"
-                : "border-transparent text-ink-muted hover:text-ink"
-            }`}
-          >
-            <ListIcon className="size-3.5" aria-hidden />
-            List
-          </Link>
-        </div>
+      <div className="flex items-center justify-between gap-3 border-b border-rule bg-surface px-4 py-2">
+        <ViewTabs />
         <ItemFormDialog
           categories={categories}
           trigger={
@@ -86,41 +64,36 @@ export default async function AppPage({
         <ZeroResults query={filters.q} />
       ) : isList ? (
         <ItemList items={items} categories={categories} />
-      ) : (
+      ) : isMap ? (
         <MoneyMap items={items} categories={categories} />
+      ) : (
+        /* No explicit view: CSS decides — board list under md, Money Map at md+.
+           Both render; each is display:none outside its breakpoint. */
+        <>
+          <div className="flex min-h-0 flex-1 flex-col md:hidden">
+            <ItemList items={items} categories={categories} />
+          </div>
+          <div className="hidden min-h-0 flex-1 flex-col md:flex">
+            <MoneyMap items={items} categories={categories} />
+          </div>
+        </>
       )}
     </div>
   );
 }
 
 /** Keeps filter params when switching views. */
-function linkFor(href: string, params: Record<string, string | string[] | undefined>): string {
-  const url = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (key === "view") continue;
-    const v = Array.isArray(value) ? value[0] : value;
-    if (v) url.set(key, v);
-  }
-  const [base, existing] = href.split("?");
-  const merged = new URLSearchParams(existing ?? "");
-  for (const [k, v] of url.entries()) merged.set(k, v);
-  const qs = merged.toString();
-  return qs ? `${base}?${qs}` : base;
-}
-
 function ZeroResults({ query }: { query: string }) {
   return (
     <div className="flex flex-1 items-center justify-center">
       <div className="text-center">
-        <p className="text-sm font-medium">
-          {query ? <>No results for “{query}”</> : "No items match these filters"}
-        </p>
-        <p className="mt-1 text-xs text-ink-muted">
-          Try a different term, or clear the filters to see everything.
+        <p className="ledger-cap text-[11px] text-ink-muted">No entries match</p>
+        <p className="font-display mt-2 text-xl font-semibold">
+          {query ? <>Nothing in the ledger for “{query}”.</> : "No items match these filters."}
         </p>
         <Link
           href="/app"
-          className="mt-3 inline-flex h-7 items-center rounded-[var(--radius-control)] border border-border-subtle px-2.5 text-xs text-ink-muted transition-colors hover:text-ink"
+          className="mt-3 inline-flex h-7 items-center rounded-[var(--radius-control)] border border-rule px-2.5 text-xs text-ink-muted transition-colors hover:border-ink/50 hover:text-ink"
         >
           Clear filters
         </Link>

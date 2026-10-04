@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
+import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
 
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-display",
+  axes: ["opsz"],
+});
+
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
 });
@@ -29,13 +35,13 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <body
-        className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased`}
+        className={`${fraunces.variable} ${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-[var(--radius-control)] focus:bg-[#4cc2ff] focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-[#0a0e14]"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-[var(--radius-control)] focus:bg-cta focus:px-3 focus:py-2 focus:text-sm focus:font-semibold focus:text-cta-ink"
         >
           Skip to content
         </a>

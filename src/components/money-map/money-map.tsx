@@ -64,6 +64,14 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
   const model = useMemo(() => buildMapModel(items), [items]);
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
+  /** The soonest due item on the board — the porcelain hairline subject. */
+  const soonestId = useMemo(() => {
+    const ranked = [...items].sort(
+      (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime(),
+    );
+    return ranked[0]?.id ?? null;
+  }, [items]);
+
   const layout = useMemo(() => {
     if (!container || container.w <= 0 || container.h <= 0) return null;
 
@@ -137,10 +145,10 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
               aria-pressed={grouping === mode}
               onClick={() => setGrouping(mode)}
               className={cn(
-                "inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-control)] border px-2.5 text-xs transition-colors",
+                "ledger-cap inline-flex h-7 items-center gap-1.5 rounded-[var(--radius-control)] border px-2.5 text-[10px] transition-colors",
                 grouping === mode
-                  ? "border-border-subtle bg-surface-2 text-ink"
-                  : "border-transparent text-ink-muted hover:text-ink",
+                  ? "border-ink bg-ink text-cta-ink"
+                  : "border-rule text-ink-muted hover:border-ink/40 hover:text-ink",
               )}
             >
               {mode === "flat" ? (
@@ -157,25 +165,31 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
         {empty ? (
           <div className="flex min-h-0 flex-1 items-center justify-center p-6">
             <div className="flex max-w-sm flex-col items-center gap-3 text-center">
-              <div aria-hidden className="grid aspect-[16/7] w-full grid-cols-4 grid-rows-2 gap-1 rounded-[var(--radius-tile)] border border-dashed border-border-subtle p-1">
-                <div className="col-span-2 rounded-[var(--radius-tile)] bg-surface-2" />
-                <div className="rounded-[var(--radius-tile)] bg-surface-2" />
-                <div className="rounded-[var(--radius-tile)] bg-surface-2" />
-                <div className="rounded-[var(--radius-tile)] bg-surface-2" />
-                <div className="col-span-2 rounded-[var(--radius-tile)] bg-surface-2" />
-                <div className="rounded-[var(--radius-tile)] bg-surface-2" />
+              <div aria-hidden className="grid aspect-[16/7] w-full grid-cols-4 grid-rows-2 gap-0.5 border border-dashed border-rule p-1">
+                <div className="col-span-2 bg-surface-2" />
+                <div className="bg-surface-2" />
+                <div className="bg-surface-2" />
+                <div className="bg-surface-2" />
+                <div className="col-span-2 bg-surface-2" />
+                <div className="bg-surface-2" />
               </div>
-              <h2 className="mt-3 text-lg font-semibold">Your map starts with one item</h2>
+              <p className="ledger-cap mt-3 text-[11px] text-ink-muted">The ledger is blank</p>
+              <h2 className="font-display text-2xl font-semibold text-ink">Your map starts with one entry</h2>
               <p className="text-sm leading-relaxed text-ink-muted" style={{ textWrap: "pretty" }}>
-                Add a subscription, bill or document renewal. Tile size is what it costs you a year.
-                Color is how soon it lands.
+                Add a subscription, bill or document renewal. Entry size is what it costs you a year.
+                Shade is how soon it comes due.
               </p>
-              <a
-                href="#add-item"
-                className="mt-2 rounded-[var(--radius-control)] bg-cta px-3 py-2 text-sm font-semibold text-cta-ink transition-transform duration-300 ease-[var(--ease-fluid)] hover:scale-[1.01] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-              >
-                Add your first item
-              </a>
+              <ItemFormDialog
+                categories={categories}
+                trigger={
+                  <button
+                    type="button"
+                    className="plate mt-2 rounded-[var(--radius-control)] px-3 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    Add your first item
+                  </button>
+                }
+              />
             </div>
           </div>
         ) : (
@@ -202,6 +216,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                     daysLeft={item.daysLeft}
                     urgency={item.urgency}
                     icon={iconFor(categoryById.get(item.categoryId))}
+                    isSoonest={rect.id === soonestId}
                     index={i}
                     onHoverChange={setHoveredId}
                     onSelect={openEdit}
@@ -222,6 +237,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                   daysLeft={0}
                   urgency={model.other.urgency}
                   icon={null}
+                  isSoonest={false}
                   index={layout.rects.length}
                   onHoverChange={setHoveredId}
                   onFocusChange={setFocusedId}
@@ -237,10 +253,10 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                 return (
                   <div
                     key={group.id}
-                    className="absolute rounded-[var(--radius-tile)] border border-border-subtle"
+                    className="absolute rounded-[var(--radius-tile)] border border-rule"
                     style={{ left: group.x, top: group.y, width: group.width, height: group.height }}
                   >
-                    <p className="absolute left-2 top-1 z-10 max-w-[calc(100%-16px)] truncate text-[11px] font-medium text-ink-muted">
+                    <p className="ledger-cap absolute left-2 top-1 z-10 max-w-[calc(100%-16px)] truncate text-[10px] text-ink-muted">
                       {category?.name ?? "Uncategorized"}
                     </p>
                     {group.children.map((child, i) => {
@@ -259,6 +275,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                           daysLeft={item.daysLeft}
                           urgency={item.urgency}
                           icon={iconFor(categoryById.get(item.categoryId))}
+                          isSoonest={child.id === soonestId}
                           index={i}
                           onHoverChange={setHoveredId}
                           onSelect={openEdit}

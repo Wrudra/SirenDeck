@@ -1,100 +1,97 @@
 @import "tailwindcss";
 
-/* ── SirenDeck design tokens ─────────────────────────────────────────── */
+/* ── The Ink Ledger — design tokens ────────────────────────────────────
+   Premium heavy monochrome on warm paper. Near-black ink text, hairline
+   rules like ledger ruling, grayscale five-step urgency ramp (calm = pale
+   gray, past due = ink), editorial serif display over a quiet grotesque,
+   tabular mono figures. Direction: user-confirmed 2026-10-04. */
+
 :root {
-  /* urgency palette (dark values) */
-  --urgency-calm: #0f766e;        /* deep teal */
-  --urgency-soon: #65a30d;        /* green→amber */
-  --urgency-urgent: #d97706;      /* amber */
-  --urgency-critical: #ea580c;    /* orange-red */
-  --urgency-overdue: #dc2626;     /* red */
+  /* warm paper grounds — layered like stock weights */
+  --bg: #f7f5f0;
+  --surface: #fffdf9;
+  --surface-2: #efece4;
 
-  /* text colors per urgency fill (contrast-safe) */
-  --on-calm: #f0fdfa;
-  --on-soon: #0a0e14;
-  --on-urgent: #0a0e14;
-  --on-critical: #0a0e14;
-  --on-overdue: #fef2f2;
+  /* hairline rules — the ruling of the ledger */
+  --rule: #dcd7cb;
+  --rule-strong: #b8b2a3;
+  --rule-input: #8a867b;
 
-  /* surfaces */
-  --bg: #0a0e14;
-  --surface: #11161f;
-  --surface-2: #171d28;
-  --border: #232b3a;
-  --text: #e8ecf4;
-  --text-muted: #8b94a7;
+  /* near-black ink text; secondary tinted warm, never cool gray */
+  --ink: #141311;
+  --ink-muted: #676357;
 
-  /* interactive accent */
-  --accent: #4cc2ff;
-  --accent-ink: #0a0e14;
+  /* interactive hairline: darker than a rule so field edges read (≥3:1) */
+  --rule-input: #8a867b;
 
-  /* focus ring */
-  --ring: #4cc2ff;
+  /* grayscale five-step urgency ramp — lightness IS urgency.
+     Calm sits pale; past due goes full ink. On-fill text tuned per step. */
+  --urgency-calm: #e4e0d5;      /* on: ink    */
+  --urgency-soon: #c9c3b4;      /* on: ink    */
+  --urgency-urgent: #a29b89;    /* on: ink    */
+  --urgency-critical: #4a463e;  /* on: paper  */
+  --urgency-overdue: #141311;   /* on: paper  */
 
-  /* motion tokens */
-  --ease-snappy: cubic-bezier(0.2, 0.9, 0.3, 1.4);
-  /* fluid choreography easing (elayadesign B7) — landing/auth/section motion */
+  --on-calm: #141311;
+  --on-soon: #141311;
+  --on-urgent: #141311;
+  --on-critical: #f7f5f0;
+  --on-overdue: #f7f5f0;
+
+  /* text-safe twins for small chips directly on paper/surface */
+  --urgency-calm-text: #6e6a5f;
+  --urgency-soon-text: #5d594e;
+  --urgency-urgent-text: #45413a;
+  --urgency-critical-text: #2e2b26;
+  --urgency-overdue-text: #141311;
+
+  /* ink plate — the only CTA treatment: solid ink, paper text */
+  --accent: #141311;
+  --accent-ink: #f7f5f0;
+  --ring: #141311;
+
+  --destructive: #141311;
+
+  /* motion — expo-out for the authored moment */
   --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
-  --radius-tile: 10px;
-  --radius-dialog: 16px;
-  --radius-control: 10px;
+  --radius-tile: 2px;
+  --radius-dialog: 6px;
+  --radius-control: 3px;
 
-  /* shadcn/ui bridge — one declaration in :root; every value is a var()
-     reference to a design token, so .light overrides propagate automatically.
-     `accent` utilities are the neutral hover surface (see @theme below);
-     the design CTA keeps --accent and gains the `cta` utilities. */
+  /* shadcn/ui bridge — every value references a token above */
   --background: var(--bg);
-  --foreground: var(--text);
+  --foreground: var(--ink);
   --card: var(--surface);
-  --card-foreground: var(--text);
-  --popover: var(--surface-2);
-  --popover-foreground: var(--text);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
   --primary: var(--accent);
   --primary-foreground: var(--accent-ink);
   --secondary: var(--surface-2);
-  --secondary-foreground: var(--text);
+  --secondary-foreground: var(--ink);
   --muted: var(--surface-2);
-  --muted-foreground: var(--text-muted);
-  --accent-foreground: var(--text);
-  --destructive: var(--urgency-overdue);
-  --input: var(--border);
-  --radius: 0.625rem;
-}
-
-.light {
-  --urgency-calm: #0d9488;
-  --urgency-soon: #4d7c0f;
-  --urgency-urgent: #b45309;
-  --urgency-critical: #c2410c;
-  --urgency-overdue: #b91c1c;
-
-  --on-calm: #f0fdfa;
-  --on-soon: #ffffff;
-  --on-urgent: #ffffff;
-  --on-critical: #ffffff;
-  --on-overdue: #ffffff;
-
-  --bg: #f7f8fa;
-  --surface: #ffffff;
-  --surface-2: #eef1f5;
-  --border: #d8dde6;
-  --text: #171b26;
-  --text-muted: #5c6575;
-  --accent: #0369a1;
-  --accent-ink: #ffffff;
-  --ring: #0369a1;
+  --muted-foreground: var(--ink-muted);
+  --accent-foreground: var(--accent-ink);
+  --input: var(--rule);
+  --border: var(--rule);
+  --radius: 3px;
 }
 
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
-  --color-border-subtle: var(--border);
-  --color-ink: var(--text);
-  --color-ink-muted: var(--text-muted);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-rule-input: var(--rule-input);
+  --color-border-subtle: var(--rule);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
   --color-accent: var(--surface-2);
-  --color-accent-foreground: var(--text);
+  --color-accent-foreground: var(--ink);
   --color-cta: var(--accent);
   --color-cta-ink: var(--accent-ink);
   --color-background: var(--background);
@@ -119,91 +116,142 @@
   --color-urgency-critical: var(--urgency-critical);
   --color-urgency-overdue: var(--urgency-overdue);
 
-  /* text colors safe on urgency fills */
   --color-on-calm: var(--on-calm);
   --color-on-soon: var(--on-soon);
   --color-on-urgent: var(--on-urgent);
   --color-on-critical: var(--on-critical);
   --color-on-overdue: var(--on-overdue);
 
-  /* mono for money/dates (JetBrains Mono wired in root layout) */
+  --color-urgency-calm-text: var(--urgency-calm-text);
+  --color-urgency-soon-text: var(--urgency-soon-text);
+  --color-urgency-urgent-text: var(--urgency-urgent-text);
+  --color-urgency-critical-text: var(--urgency-critical-text);
+  --color-urgency-overdue-text: var(--urgency-overdue-text);
+
   --font-mono-var: var(--font-mono), ui-monospace, monospace;
 
-  --radius-tile: 10px;
-  --radius-dialog: 16px;
-  --radius-control: 10px;
+  --radius-tile: 2px;
+  --radius-dialog: 6px;
+  --radius-control: 3px;
 
-  /* motion system tokens (owl-listener motion-system) */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
-  --ease-accelerate: cubic-bezier(0.3, 0, 1, 0.3);
 }
 
-/* system-level reduced motion: tokens collapse to instant; pulses off */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --ease-fluid: linear;
+    --ease-out-expo: linear;
     --ease-standard: linear;
     --ease-decelerate: linear;
-    --ease-accelerate: linear;
   }
+}
+
+/* ── Browser surfaces — the parts we did not draw still carry the world ── */
+html {
+  color-scheme: light;
 }
 
 body {
   background: var(--bg);
-  color: var(--text);
+  color: var(--ink);
   font-family: var(--font-sans), system-ui, sans-serif;
+  caret-color: var(--ink);
 }
 
-/* tabular money figures */
-.tabular { font-variant-numeric: tabular-nums; }
-
-/* ── Urgency pulses ──────────────────────────────────────────────────────
-   Opacity/scale≤1.01/border-color oscillation only — no layout-affecting
-   properties. Disabled under prefers-reduced-motion (Motion animations are
-   handled separately via MotionConfig reducedMotion="user"). */
-@keyframes pulse-soon {
-  0%, 100% { opacity: 0.88; }
-  50% { opacity: 1; }
-}
-@keyframes pulse-urgent {
-  0%, 100% { scale: 1; }
-  50% { scale: 1.01; }
-}
-@keyframes pulse-critical {
-  0%, 100% { scale: 1; }
-  50% { scale: 1.01; }
-}
-@keyframes pulse-overdue {
-  0%, 100% { border-color: var(--urgency-overdue); }
-  50% { border-color: color-mix(in oklch, var(--urgency-overdue), var(--text) 55%); }
+::selection {
+  background: var(--ink);
+  color: var(--bg);
 }
 
-.tile-pulse-soon { animation: pulse-soon 2.4s ease-in-out infinite; }
-.tile-pulse-urgent { animation: pulse-urgent 1.8s ease-in-out infinite; }
-.tile-pulse-critical { animation: pulse-critical 1.2s ease-in-out infinite; }
-.tile-pulse-overdue { animation: pulse-overdue 1s ease-in-out infinite; }
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-strong) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--rule-strong);
+  border: 3px solid var(--bg);
+  border-radius: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 
-@media (prefers-reduced-motion: reduce) {
-  .tile-pulse-soon,
-  .tile-pulse-urgent,
-  .tile-pulse-critical,
-  .tile-pulse-overdue {
-    animation: none;
+/* ── Ledger vocabulary ────────────────────────────────────────────────── */
+
+/* Ledger label: tracked small caps in the grotesque — the voice of every
+   ruling, column head, and totals label. Never for sentences. */
+.ledger-cap {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 560;
+}
+
+/* Ink plate: the CTA. Solid near-black ink with paper text, one offset
+   paper-emboss shadow — heavy, printed, never a glow. */
+.plate {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 1px 0 #000000,
+    0 10px 24px -14px rgb(20 19 17 / 0.55);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .plate {
+    transition: transform 200ms var(--ease-out-expo);
+  }
+  .plate:hover {
+    transform: scale(1.02);
+  }
+  .plate:active {
+    transform: scale(0.98);
   }
 }
 
-/* ── Landing/marketing utilities (elayadesign B7 scroll interpolation) ── */
+/* Tabular figures for every number that can change. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Editorial display serif class (font set via --font-display). */
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+}
+
+/* ── The one authored moment: rerank in place ───────────────────────────
+   Overdue holds as solid ink — no pulse in a print world; the ink itself
+   is the alarm. (Kept as a no-op class for API parity.) */
+.tile-pulse-overdue {
+  /* no pulse — ink is the alarm */
+}
+
+/* ── Landing scroll reveal (opacity/translate/blur only) ──────────────── */
 .reveal-init {
   opacity: 0;
-  transform: translateY(4rem);
-  filter: blur(12px);
+  transform: translateY(2.5rem);
+  filter: blur(8px);
 }
 
 .reveal-in {
   opacity: 1;
   transform: translateY(0);
   filter: blur(0);
+}
+
+/* No-JS / pre-hydration escape hatch: without JS the keyframe still runs
+   and settles content visible; with JS, reveal-in overrides immediately. */
+@media (scripting: none) {
+  .reveal-init {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

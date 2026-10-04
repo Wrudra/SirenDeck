@@ -108,7 +108,7 @@ export function FilterBar({
   const filtering = hasActiveFilters(filters);
 
   const selectCls =
-    "h-7 appearance-none rounded-[var(--radius-control)] border border-border-subtle bg-surface pl-2 pr-6 text-xs text-ink outline-none transition-colors hover:border-ink-muted/50 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/60";
+    "h-7 appearance-none rounded-[var(--radius-control)] border border-rule-input bg-surface pl-2 pr-6 text-xs text-ink outline-none transition-colors hover:border-rule-strong focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-ink/50";
 
   return (
     <div
@@ -116,7 +116,7 @@ export function FilterBar({
       aria-label="Filters"
       aria-busy={pending}
       className={cn(
-        "flex h-10 items-center gap-2 border-b border-border-subtle bg-surface px-4",
+        "flex h-10 items-center gap-2 border-b border-rule bg-surface px-4",
         pending && "opacity-70",
       )}
     >
@@ -132,7 +132,7 @@ export function FilterBar({
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search titles or notes…"
           aria-label="Search items"
-          className="h-7 w-44 rounded-[var(--radius-control)] border border-border-subtle bg-surface pl-7 pr-2 text-xs outline-none transition-colors placeholder:text-ink-muted focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/60 [&::-webkit-search-cancel-button]:hidden"
+          className="h-7 w-44 rounded-[var(--radius-control)] border border-rule-input bg-surface pl-7 pr-2 text-xs outline-none transition-colors placeholder:text-ink-muted focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-ink/50 [&::-webkit-search-cancel-button]:hidden"
         />
         {q && (
           <button
@@ -142,7 +142,7 @@ export function FilterBar({
               setParam({ q: null });
             }}
             aria-label="Clear search"
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-ink-muted hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-[var(--radius-control)] p-0.5 text-ink-muted hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
           >
             <XIcon className="size-3" aria-hidden />
           </button>
@@ -157,7 +157,7 @@ export function FilterBar({
             id="filter-category"
             value={filters.categoryId ?? ""}
             onChange={(e) => setParam({ category: e.target.value || null })}
-            className={cn(selectCls, filters.categoryId && "border-cta/60")}
+            className={cn(selectCls, filters.categoryId && "border-ink-muted/50")}
           >
             <option value="">All categories</option>
             {categories.map((c) => (
@@ -173,7 +173,7 @@ export function FilterBar({
             id="filter-urgency"
             value={filters.urgency ?? ""}
             onChange={(e) => setParam({ urgency: e.target.value || null })}
-            className={cn(selectCls, filters.urgency && "border-cta/60")}
+            className={cn(selectCls, filters.urgency && "border-ink-muted/50")}
           >
             <option value="">Any urgency</option>
             {Object.entries(URGENCY_LABELS).map(([value, label]) => (
@@ -191,7 +191,7 @@ export function FilterBar({
             onChange={(e) =>
               setParam({ renew: e.target.value === "" ? null : e.target.value })
             }
-            className={cn(selectCls, filters.autoRenew != null && "border-cta/60")}
+            className={cn(selectCls, filters.autoRenew != null && "border-ink-muted/50")}
           >
             <option value="">Any renewal</option>
             <option value="yes">Auto-renew</option>
@@ -208,7 +208,7 @@ export function FilterBar({
             onChange={(e) =>
               setParam({ window: e.target.value === "all" ? null : e.target.value })
             }
-            className={cn(selectCls, filters.window !== "all" && "border-cta/60")}
+            className={cn(selectCls, filters.window !== "all" && "border-ink-muted/50")}
           >
             {Object.entries(WINDOW_LABELS).map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
@@ -231,7 +231,7 @@ export function FilterBar({
                 setQ("");
                 startTransition(() => router.push("/app", { scroll: false }));
               }}
-              className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-control)] border border-border-subtle px-2 text-xs text-ink-muted transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+              className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-control)] border border-rule px-2 text-xs text-ink-muted transition-colors hover:border-rule-strong hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
             >
               <XIcon className="size-3" aria-hidden />
               Clear all
@@ -249,7 +249,7 @@ export function FilterBar({
                 type="button"
                 onClick={() => setParam({ [chip.param]: null })}
                 aria-label={`Remove filter: ${chip.label}`}
-                className="inline-flex h-6 max-w-40 items-center gap-1 rounded-full bg-surface-2 px-2 text-[11px] text-ink transition-colors hover:text-ink-muted"
+                className="inline-flex h-6 max-w-40 items-center gap-1 rounded-[var(--radius-control)] border border-rule bg-surface-2 px-2 text-[11px] text-ink transition-colors hover:text-ink-muted"
               >
                 <span className="truncate">{chip.label}</span>
                 <XIcon className="size-2.5 shrink-0" aria-hidden />

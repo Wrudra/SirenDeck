@@ -7,10 +7,9 @@ import type { MapModel } from "@/lib/map/map-model";
 import { formatCost } from "@/lib/money";
 
 /**
- * Animated number: gentle count-up with tabular figures.
- * Reduced motion → instant value. The rAF callback (an external-system
- * subscription) is the only place state advances; the effect body itself
- * never calls setState synchronously.
+ * Flap figure: gentle count-up with tabular figures, like a split-flap
+ * settling on its value. Reduced motion → instant value. The rAF callback
+ * (an external-system subscription) is the only place state advances.
  */
 function CountUp({
   value,
@@ -35,7 +34,7 @@ function CountUp({
     if (delta === 0) return;
 
     const t0 = performance.now();
-    const duration = 600; // gentle
+    const duration = 600;
     const tick = (now: number) => {
       const t = Math.min((now - t0) / duration, 1);
       const eased = 1 - Math.pow(1 - t, 3);
@@ -75,14 +74,14 @@ function SummaryMetric({
 }) {
   return (
     <div className="flex min-w-28 flex-col gap-0.5">
-      <span className="text-[11px] tracking-wide text-ink-muted uppercase">{label}</span>
+      <span className="ledger-cap text-[10px] text-ink-muted">{label}</span>
       <span
         className={
           emphasis === "overdue"
-            ? "text-sm font-semibold text-urgency-overdue"
+            ? "text-sm font-semibold text-urgency-overdue-text"
             : emphasis === "dueSoon"
-              ? "text-sm font-semibold text-urgency-urgent"
-              : "text-sm font-semibold"
+              ? "text-sm font-semibold text-urgency-urgent-text"
+              : "font-display text-base font-semibold"
         }
       >
         <CountUp value={value} format={format} />
@@ -93,21 +92,21 @@ function SummaryMetric({
 
 /**
  * Summary strip: per-currency blocks (total yearly / next 30 days / overdue),
- * plus item count. One block per currency present.
+ * plus item count. Reads as the board's totals row.
  */
 export function SummaryStrip({ model }: { model: MapModel }) {
   return (
     <div
       role="status"
       aria-label="Cost summary"
-      className="flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-border-subtle bg-surface px-4 py-2.5"
+      className="flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-rule bg-surface px-4 py-2.5"
     >
       {model.totals.length === 0 && (
         <p className="text-xs text-ink-muted">No priced items yet.</p>
       )}
       {model.totals.map(({ currency, line }) => (
         <div key={currency} className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <span className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-ink-muted">
+          <span className="ledger-cap rounded-[var(--radius-control)] border border-rule px-2 py-0.5 text-[10px] text-ink-muted">
             {currency}
           </span>
           <SummaryMetric
@@ -130,9 +129,9 @@ export function SummaryStrip({ model }: { model: MapModel }) {
         </div>
       ))}
       <div className="ml-auto flex flex-col gap-0.5 text-right">
-        <span className="text-[11px] tracking-wide text-ink-muted uppercase">Items</span>
+        <span className="ledger-cap text-[10px] text-ink-muted">Items</span>
         <span
-          className="text-sm font-semibold tabular"
+          className="tabular text-sm font-semibold"
           style={{ fontFamily: "var(--font-mono-var)" }}
         >
           {model.itemCount}

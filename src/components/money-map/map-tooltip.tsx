@@ -46,8 +46,8 @@ export function MapTooltip({
         exit={{ opacity: 0 }}
         transition={{ duration: 0.15 }}
         className={cn(
-          "pointer-events-none absolute z-30 w-60 rounded-[var(--radius-control)] border border-border-subtle bg-surface-2 p-3",
-          "shadow-[0_8px_24px_rgb(0_0_0/0.35),0_2px_8px_rgb(0_0_0/0.25)]",
+          "pointer-events-none absolute z-30 w-60 rounded-[var(--radius-control)] border border-ink bg-surface p-3",
+          "shadow-[0_8px_24px_rgb(20_19_17/0.16),0_2px_8px_rgb(20_19_17/0.10)]",
         )}
         style={{ left, top, width }}
       >

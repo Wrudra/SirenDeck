@@ -18,35 +18,38 @@ export default async function LoginPage() {
   if (user) redirect("/app");
 
   return (
-    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-[#0a0e14] px-6 py-16 text-[#e8ecf4]">
-      {/* quiet urgency-strip motif, matches the landing hero */}
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 flex h-1.5">
-        <div className="flex-1 bg-[#0f766e]" />
-        <div className="flex-1 bg-[#65a30d]" />
-        <div className="flex-1 bg-[#d97706]" />
-        <div className="flex-1 bg-[#ea580c]" />
-        <div className="flex-1 bg-[#dc2626]" />
+    <main className="relative flex min-h-dvh items-center justify-center bg-bg px-6 py-16">
+      {/* the five shades rule the top of every ledger card */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 flex h-[3px]"
+      >
+        <div className="flex-1" style={{ backgroundColor: "var(--urgency-calm)" }} />
+        <div className="flex-1" style={{ backgroundColor: "var(--urgency-soon)" }} />
+        <div className="flex-1" style={{ backgroundColor: "var(--urgency-urgent)" }} />
+        <div className="flex-1" style={{ backgroundColor: "var(--urgency-critical)" }} />
+        <div className="flex-1" style={{ backgroundColor: "var(--urgency-overdue)" }} />
       </div>
 
       <div className="flex w-full max-w-sm flex-col items-center gap-8">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <Link href="/" className="flex items-center gap-2 text-sm font-semibold tracking-wide">
-            <span aria-hidden className="inline-block size-4 rounded-[5px] bg-[#dc2626]" />
-            SirenDeck
+        <div className="flex w-full flex-col items-center gap-3 text-center">
+          <Link href="/" className="flex items-baseline gap-2.5">
+            <span aria-hidden className="inline-block size-3 bg-ink" />
+            <span className="font-display text-xl font-semibold tracking-[-0.01em]">SirenDeck</span>
           </Link>
-          <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
-          <p className="text-sm text-[#8b94a7]">Sign in to your Money Map.</p>
+          <h1 className="font-display text-3xl font-semibold tracking-[-0.01em]">Welcome back</h1>
+          <p className="text-sm text-ink-muted">Your ledger is where you left it.</p>
         </div>
 
         <AuthForm mode="login" />
 
-        <p className="text-sm text-[#8b94a7]">
+        <p className="text-sm text-ink-muted">
           No account yet?{" "}
-          <Link href="/signup" className="font-medium text-[#4cc2ff] hover:underline">
-            Create one free
+          <Link href="/signup" className="font-medium underline decoration-rule-strong underline-offset-4 hover:decoration-ink">
+            Open one free
           </Link>
         </p>
-        <Link href="/" className="text-xs text-[#8b94a7] transition-colors hover:text-[#e8ecf4]">
+        <Link href="/" className="text-xs text-ink-muted transition-colors hover:text-ink">
           Back to home
         </Link>
       </div>

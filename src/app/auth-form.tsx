@@ -41,7 +41,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // final client-side gate; server still validates
     const errs: Record<string, string> = {};
     for (const [name, value] of [["email", email], ["password", password]] as const) {
       const msg = validateField(name, value);
@@ -77,13 +76,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
   }
 
   const inputBase =
-    "w-full rounded-xl border bg-transparent px-3 py-2 text-sm outline-none transition-colors placeholder:text-[#8b94a7]/60 focus-visible:ring-2";
+    "w-full rounded-[var(--radius-control)] border bg-surface px-3 py-2 text-sm outline-none transition-colors placeholder:text-ink-muted";
 
   if (awaitingConfirmation) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-[#11161f] p-6 text-center">
-        <p className="text-sm leading-relaxed text-[#8b94a7]" style={{ textWrap: "pretty" }}>
-          We sent a confirmation link to <span className="font-medium text-[#e8ecf4]">{email}</span>.
+      <div className="w-full rounded-[var(--radius-dialog)] border border-rule bg-surface p-6 text-center">
+        <p className="ledger-cap text-[10px] text-ink-muted">Check your inbox</p>
+        <p className="mt-3 text-sm leading-relaxed text-ink-muted" style={{ textWrap: "pretty" }}>
+          We sent a confirmation link to <span className="font-medium text-ink">{email}</span>.
           Click it to activate your account, then sign in here.
         </p>
       </div>
@@ -93,7 +93,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   return (
     <form onSubmit={handleSubmit} noValidate className="flex w-full max-w-sm flex-col gap-5">
       <div className="flex flex-col gap-2">
-        <label htmlFor="email" className="text-sm font-medium">
+        <label htmlFor="email" className="ledger-cap text-[10px] text-ink-muted">
           Email
         </label>
         <input
@@ -108,15 +108,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
           aria-invalid={fieldErrors.email ? true : undefined}
           aria-describedby={fieldErrors.email ? "email-err" : undefined}
           placeholder="you@example.com"
-          className={`${inputBase} ${fieldErrors.email ? "border-[#dc2626] focus-visible:ring-[#dc2626]/40" : "border-white/15 focus-visible:border-[#4cc2ff] focus-visible:ring-[#4cc2ff]/30"}`}
+          className={`${inputBase} ${fieldErrors.email ? "border-ink focus-visible:ring-2 focus-visible:ring-ink/30" : "border-rule-input focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-ink/50"}`}
         />
         {fieldErrors.email && (
-          <p id="email-err" className="text-xs text-[#dc2626]">{fieldErrors.email}</p>
+          <p id="email-err" className="text-xs font-medium">{fieldErrors.email}</p>
         )}
       </div>
 
       <div className="flex flex-col gap-2">
-        <label htmlFor="password" className="text-sm font-medium">
+        <label htmlFor="password" className="ledger-cap text-[10px] text-ink-muted">
           Password
         </label>
         <div className="relative">
@@ -133,28 +133,28 @@ export function AuthForm({ mode }: { mode: Mode }) {
             aria-invalid={fieldErrors.password ? true : undefined}
             aria-describedby={fieldErrors.password ? "password-err" : "password-hint"}
             placeholder="At least 8 characters"
-            className={`${inputBase} pr-10 ${fieldErrors.password ? "border-[#dc2626] focus-visible:ring-[#dc2626]/40" : "border-white/15 focus-visible:border-[#4cc2ff] focus-visible:ring-[#4cc2ff]/30"}`}
+            className={`${inputBase} pr-10 ${fieldErrors.password ? "border-ink focus-visible:ring-2 focus-visible:ring-ink/30" : "border-rule-input focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-ink/50"}`}
           />
           <button
             type="button"
             onClick={() => setShowPassword((v) => !v)}
             aria-label={showPassword ? "Hide password" : "Show password"}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-[#8b94a7] transition-colors hover:text-[#e8ecf4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#4cc2ff]"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-[var(--radius-control)] p-1 text-ink-muted transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
           >
             {showPassword ? <EyeOffIcon className="size-4" aria-hidden /> : <EyeIcon className="size-4" aria-hidden />}
           </button>
         </div>
         {fieldErrors.password ? (
-          <p id="password-err" className="text-xs text-[#dc2626]">{fieldErrors.password}</p>
+          <p id="password-err" className="text-xs font-medium">{fieldErrors.password}</p>
         ) : (
-          <p id="password-hint" className="text-xs text-[#8b94a7]">
+          <p id="password-hint" className="text-xs text-ink-muted">
             {mode === "signup" ? "At least 8 characters." : "\u00A0"}
           </p>
         )}
       </div>
 
       {error && (
-        <p role="alert" className="rounded-xl border border-[#dc2626]/30 bg-[#dc2626]/10 px-3 py-2 text-xs text-[#f87171]">
+        <p role="alert" className="rounded-[var(--radius-control)] border border-ink bg-surface-2 px-3 py-2 text-xs font-medium">
           {error}
         </p>
       )}
@@ -162,7 +162,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-xl bg-[#4cc2ff] px-3 py-2.5 text-base font-semibold text-[#0a0e14] transition-transform duration-300 ease-[var(--ease-fluid)] hover:scale-[1.01] active:scale-[0.98] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4cc2ff] disabled:pointer-events-none disabled:opacity-50"
+        className="plate rounded-[var(--radius-control)] px-3 py-2.5 text-base font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50"
       >
         {pending ? "Working…" : mode === "signup" ? "Create account" : "Sign in"}
       </button>

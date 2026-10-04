@@ -15,15 +15,25 @@ export const URGENCY_FILL: Record<UrgencyLevel, string> = {
   overdue: "bg-urgency-overdue text-on-overdue",
 };
 
+/** Print world: no pulse — solid ink is the alarm. Kept for API parity. */
 export const URGENCY_PULSE: Record<UrgencyLevel, string> = {
   calm: "",
-  soon: "tile-pulse-soon",
-  urgent: "tile-pulse-urgent",
-  critical: "tile-pulse-critical",
-  overdue: "tile-pulse-overdue",
+  soon: "",
+  urgent: "",
+  critical: "",
+  overdue: "",
 };
 
-/** Spring for tile reflow (design token `smooth`). */
+/** Days-badge tint per family: ink wash on light shades, paper wash on dark. */
+const BADGE_TINT: Record<UrgencyLevel, string> = {
+  calm: "color-mix(in oklab, #141311 14%, transparent)",
+  soon: "color-mix(in oklab, #141311 12%, transparent)",
+  urgent: "color-mix(in oklab, #141311 10%, transparent)",
+  critical: "color-mix(in oklab, #f7f5f0 20%, transparent)",
+  overdue: "color-mix(in oklab, #f7f5f0 24%, transparent)",
+};
+
+/** Spring for tile reflow — the authored rerank moment. */
 export const SMOOTH_SPRING = { type: "spring", stiffness: 260, damping: 30, mass: 1 } as const;
 
 export function daysLabel(daysLeft: number): string {
@@ -44,6 +54,8 @@ interface TileProps {
   daysLeft: number;
   urgency: UrgencyLevel;
   icon: LucideIcon | null;
+  /** the soonest due item on the board — gets the ink anchor ring */
+  isSoonest?: boolean;
   /** entrance stagger index (largest-first = 0); undefined = no entrance */
   index?: number;
   onHoverChange?: (id: string | null) => void;
@@ -66,6 +78,7 @@ function TileInner({
   daysLeft,
   urgency,
   icon: Icon,
+  isSoonest,
   index,
   onHoverChange,
   onSelect,
@@ -82,9 +95,9 @@ function TileInner({
       type="button"
       layout={!reduced}
       layoutId={id}
-      initial={index != null && !reduced ? { opacity: 0, scale: 0.9 } : false}
+      initial={index != null && !reduced ? { opacity: 0, scale: 0.92 } : false}
       animate={{ opacity: 1, scale: 1 }}
-      exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.9 }}
+      exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.92 }}
       transition={{
         ...SMOOTH_SPRING,
         ...(index != null && !reduced ? { delay: Math.min(index * 0.03, 0.6) } : {}),
@@ -97,8 +110,11 @@ function TileInner({
       whileHover={reduced ? undefined : { scale: 1.01 }}
       aria-label={label}
       className={cn(
-        "group absolute flex cursor-pointer flex-col overflow-hidden rounded-[var(--radius-tile)] border border-transparent p-1.5 text-left outline-none",
-        "hover:border-ink/40 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/60",
+        "group absolute flex cursor-pointer flex-col overflow-hidden rounded-[var(--radius-tile)] border p-1.5 text-left outline-none",
+        isSoonest
+          ? "border-ink ring-2 ring-ink ring-offset-1 ring-offset-bg"
+          : "border-ink/20 hover:border-ink/45",
+        "focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-ink/50",
         "hover:z-20 focus-visible:z-20",
         URGENCY_FILL[urgency],
         URGENCY_PULSE[urgency],
@@ -108,7 +124,7 @@ function TileInner({
       {showIcon && Icon != null && (
         <Icon
           aria-hidden
-          className="pointer-events-none absolute right-1.5 top-1.5 size-4 opacity-60"
+          className="pointer-events-none absolute right-1.5 top-1.5 size-4 opacity-50"
         />
       )}
       {showLabels && (
@@ -118,7 +134,7 @@ function TileInner({
       )}
       {showMoney && cost && (
         <span
-          className="pointer-events-none mt-auto tabular text-xs"
+          className="tabular pointer-events-none mt-auto text-xs"
           style={{ fontFamily: "var(--font-mono-var)" }}
         >
           {cost}
@@ -126,11 +142,8 @@ function TileInner({
       )}
       {showLabels && (
         <span
-          className="pointer-events-none absolute bottom-1.5 left-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
-          style={{
-            backgroundColor: "color-mix(in oklab, currentColor 18%, transparent)",
-            color: "currentColor",
-          }}
+          className="tabular pointer-events-none absolute bottom-1.5 left-1.5 rounded-[var(--radius-tile)] px-1.5 py-0.5 text-[10px] font-medium"
+          style={{ backgroundColor: BADGE_TINT[urgency] }}
         >
           {daysLabel(daysLeft)}
         </span>

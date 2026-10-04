@@ -3,22 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import type { ActionState, MutationResult } from "@/lib/actions/types";
 import { requireUser } from "@/lib/supabase/require-user";
 import { itemInputSchema } from "@/lib/validation/item";
-
-export interface ActionState {
-  ok: boolean;
-  error?: string;
-  fieldErrors?: Record<string, string>;
-}
-
-export const idleState: ActionState = { ok: false };
-
-/**
- * Result for non-form actions (markDone / snoozeItem / deleteItem).
- * Clients toast on these; the add/edit form uses useActionState instead.
- */
-export type MutationResult = { ok: true } | { ok: false; error: string };
 
 const uuidSchema = z.string().uuid();
 

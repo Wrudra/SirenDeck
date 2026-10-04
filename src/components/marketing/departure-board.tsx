@@ -1,0 +1,211 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { MotionConfig, motion, useReducedMotion } from "motion/react";
+
+import { layoutFlat } from "@/lib/map/treemap";
+import { getUrgency, type UrgencyLevel } from "@/lib/urgency";
+
+/**
+ * Synthetic demo board for the landing hero. Real layout math (d3-hierarchy),
+ * fake data, a clock that advances every few seconds: shades deepen along the
+ * five-step ink ramp and rows rerank in place. Labeled synthetic — the
+ * mechanism demonstrated, not described.
+ */
+
+interface DemoItem {
+  id: string;
+  title: string;
+  cost: number;
+  daysLeft: number;
+}
+
+const INITIAL: DemoItem[] = [
+  { id: "ins", title: "Car insurance", cost: 45000, daysLeft: 42 },
+  { id: "pass", title: "Passport", cost: 8500, daysLeft: 58 },
+  { id: "elec", title: "Electricity", cost: 42000, daysLeft: 16 },
+  { id: "dom", title: "sirendeck.app", cost: 2200, daysLeft: 9 },
+  { id: "net", title: "Netflix", cost: 14400, daysLeft: 6 },
+  { id: "spot", title: "Spotify", cost: 7200, daysLeft: 2 },
+  { id: "lic", title: "Driving license", cost: 1200, daysLeft: 96 },
+];
+
+const RANK_SPRING = { type: "spring", stiffness: 320, damping: 34 } as const;
+
+function fmtBDT(n: number): string {
+  return `৳${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "")}k`;
+}
+
+function urgencyOf(daysLeft: number): UrgencyLevel {
+  return getUrgency(
+    new Date(Date.now() + daysLeft * 86_400_000).toISOString().slice(0, 10),
+  ).level;
+}
+
+/** Ink shade per urgency — the landing demo runs the real ramp. */
+const SHADE: Record<UrgencyLevel, string> = {
+  calm: "var(--urgency-calm)",
+  soon: "var(--urgency-soon)",
+  urgent: "var(--urgency-urgent)",
+  critical: "var(--urgency-critical)",
+  overdue: "var(--urgency-overdue)",
+};
+
+/** On-shade text per family. */
+const SHADE_TEXT: Record<UrgencyLevel, string> = {
+  calm: "var(--on-calm)",
+  soon: "var(--on-soon)",
+  urgent: "var(--on-urgent)",
+  critical: "var(--on-critical)",
+  overdue: "var(--on-overdue)",
+};
+
+/** Small chips beside rows: text-safe twins. */
+const TEXT_TONE: Record<UrgencyLevel, string> = {
+  calm: "var(--urgency-calm-text)",
+  soon: "var(--urgency-soon-text)",
+  urgent: "var(--urgency-urgent-text)",
+  critical: "var(--urgency-critical-text)",
+  overdue: "var(--urgency-overdue-text)",
+};
+
+function daysWord(d: number): string {
+  if (d < 0) return `${Math.abs(d)}d over`;
+  if (d === 0) return "today";
+  return `${d}d`;
+}
+
+export function DepartureBoard() {
+  const reduced = useReducedMotion();
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    if (reduced) return;
+    const t = setInterval(() => setTick((n) => n + 1), 2600);
+    return () => clearInterval(t);
+  }, [reduced]);
+
+  const items = useMemo(() => {
+    // one day burns per ~2.6s tick; the clock never resets. Slow enough that
+    // the rerank reads as a living ledger, not a countdown alarm.
+    const burn = tick;
+    return INITIAL.map((item) => ({
+      ...item,
+      daysLeft: item.daysLeft - burn,
+    })).map((item) => ({
+      ...item,
+      urgency: urgencyOf(item.daysLeft),
+    }));
+  }, [tick]);
+
+  const ranked = useMemo(
+    () => [...items].sort((a, b) => a.daysLeft - b.daysLeft),
+    [items],
+  );
+
+  const rects = useMemo(() => {
+    const inputs = items.map((i) => ({ id: i.id, value: i.cost }));
+    const laid = layoutFlat(inputs, 720, 300, 2);
+    const byId = new Map(laid.map((r) => [r.id, r]));
+    // scale from the 720×300 design frame to percentage space
+    return items.map((i) => {
+      const r = byId.get(i.id);
+      return r
+        ? {
+            ...i,
+            left: (r.x / 720) * 100,
+            top: (r.y / 300) * 100,
+            width: (r.width / 720) * 100,
+            height: (r.height / 300) * 100,
+          }
+        : null;
+    });
+  }, [items]);
+
+  return (
+    <MotionConfig reducedMotion="user">
+      <div className="border border-rule bg-surface">
+        {/* ledger header rail */}
+        <div className="flex items-center justify-between border-b border-rule px-4 py-2.5">
+          <p className="ledger-cap text-[10px] text-ink-muted">
+            Entries — renewals &amp; expiries
+          </p>
+          <p className="ledger-cap text-[10px] text-ink-muted">Synthetic</p>
+        </div>
+
+        <div className="grid md:grid-cols-[3fr_2fr]">
+          {/* the map: sized by cost, shaded by urgency */}
+          <div
+            aria-hidden
+            className="relative aspect-[12/5] overflow-hidden border-b border-rule md:border-b-0 md:border-r"
+          >
+            {rects.map(
+              (r) =>
+                r && (
+                  <motion.div
+                    key={r.id}
+                    layout={!reduced}
+                    className="absolute p-1.5"
+                    style={{
+                      left: `${r.left}%`,
+                      top: `${r.top}%`,
+                      width: `${r.width}%`,
+                      height: `${r.height}%`,
+                      backgroundColor: SHADE[r.urgency],
+                      color: SHADE_TEXT[r.urgency],
+                    }}
+                    transition={RANK_SPRING}
+                  >
+                    {r.width > 14 && r.height > 30 && (
+                      <>
+                        <p className="truncate text-[11px] leading-tight font-medium">{r.title}</p>
+                        <p
+                          className="tabular absolute right-1.5 bottom-1 text-[10px] opacity-75"
+                          style={{ fontFamily: "var(--font-mono-var)" }}
+                        >
+                          {fmtBDT(r.cost)}
+                        </p>
+                      </>
+                    )}
+                  </motion.div>
+                ),
+            )}
+          </div>
+
+          {/* the ranked rows: what leaves soonest, reranking in place */}
+          <div aria-hidden className="flex flex-col justify-between p-2">
+            {ranked.map((item) => (
+              <motion.div
+                key={item.id}
+                layout={!reduced}
+                transition={RANK_SPRING}
+                className="grid grid-cols-[1fr_auto_auto] items-baseline gap-3 border-b border-rule px-2 py-1.5 last:border-b-0"
+              >
+                <span className="truncate text-[13px]">{item.title}</span>
+                <span
+                  className="tabular text-[12px] font-medium"
+                  style={{ color: TEXT_TONE[item.urgency], fontFamily: "var(--font-mono-var)" }}
+                >
+                  {daysWord(item.daysLeft)}
+                </span>
+                <span
+                  className="tabular w-14 text-right text-[12px] text-ink-muted"
+                  style={{ fontFamily: "var(--font-mono-var)" }}
+                >
+                  {fmtBDT(item.cost)}
+                </span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+
+        {/* ledger footer: the reading key */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-rule px-4 py-2">
+          <span className="ledger-cap text-[9px] text-ink-muted">Entry size = yearly cost</span>
+          <span className="ledger-cap text-[9px] text-ink-muted">Shade = urgency</span>
+          <span className="ledger-cap ml-auto text-[9px] text-ink-muted">Rows rank by due date</span>
+        </div>
+      </div>
+    </MotionConfig>
+  );
+}
