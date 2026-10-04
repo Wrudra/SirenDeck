@@ -22,6 +22,24 @@ from other design guideline sources.
 
 - `landing-page-design` — login/landing surfaces and any marketing page.
 
+## SirenDeck palette context
+
+SirenDeck ships TWO palettes in [src/app/globals.css](/Users/rudratahsin/Developer/SirenDeck/src/app/globals.css). Each surface uses exactly one.
+
+| Palette | Variables | Surface | Aesthetic |
+|---|---|---|---|
+| Warm paper | `--urgency-*` (5-step grayscale), `--ink-*`, `--paper-*` | Login, signup, top bar, ledger cards, dialogs, marketing chrome, all "Ink Ledger" surfaces | Premium heavy monochrome on warm paper |
+| Heatmap | `--heat-bg`, `--heat-rule`, `--heat-ink`, `--heat-ink-muted`, `--heat-calm/soon/urgent/critical/overdue` | Money Map canvas, its loading skeleton, the marketing DepartureBoard demo, and the map tooltip | TradingView stock-heatmap style — dark surface, green→red gradient, white text, hairline dividers |
+
+When designing or auditing either surface, apply the same per-phase
+`critique-visual-hierarchy` + `accessibility-audit` audits — but read the
+palette in the file, not assume the warm-paper defaults. Mixing palettes
+on one surface is a bug.
+
+The `--heat-*` palette is intentionally outside `ui-design/color-system`:
+it is a single-surface accent borrowed from financial heatmap conventions,
+not a general-purpose system.
+
 ## Updating
 
 Re-copy the SKILL.md files from upstream when they change; keep the folder
