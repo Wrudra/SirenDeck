@@ -38,19 +38,17 @@
   --on-critical: #f7f5f0;
   --on-overdue: #f7f5f0;
 
-  /* Heatmap mode — TradingView-style green→red gradient for the Money Map
-     surface only. Tiles get vivid fill, white text, dense zero-gap packing,
-     on a near-black board. Calm = healthy gain, overdue = deep loss. */
-  --heat-bg: #0b0b0a;
-  --heat-rule: #0b0b0a;
-  --heat-ink: #ffffff;
-  --heat-ink-muted: rgba(255, 255, 255, 0.72);
+  /* Heatmap mode — muted fills, dark text, white board. */
+  --heat-bg: #ffffff;
+  --heat-rule: #ffffff;
+  --heat-ink: #1c1917;
+  --heat-ink-muted: rgba(28, 25, 23, 0.62);
 
-  --heat-calm: #15803d;         /* strong green · +1-3%      */
-  --heat-soon: #65a30d;         /* light green  · +0-1%      */
-  --heat-urgent: #eab308;       /* amber        · flat 0%    */
-  --heat-critical: #ea580c;     /* orange       · -1%        */
-  --heat-overdue: #b91c1c;      /* deep red     · -3%+       */
+  --heat-calm: #c5ddd2;
+  --heat-soon: #d7e3cc;
+  --heat-urgent: #e6e1d6;
+  --heat-critical: #e7d0c6;
+  --heat-overdue: #e4c4c0;
 
   /* text-safe twins for small chips directly on paper/surface */
   --urgency-calm-text: #6e6a5f;

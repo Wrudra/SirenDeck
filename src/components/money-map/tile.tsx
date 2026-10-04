@@ -7,22 +7,13 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "cn";
 import type { UrgencyLevel } from "@/lib/urgency";
 
-/** Heatmap fills · TradingView-style green→red. White text on all levels. */
+/** Muted heatmap fills. Dark text on all levels. */
 export const URGENCY_FILL: Record<UrgencyLevel, string> = {
   calm: "bg-heat-calm text-heat-ink",
   soon: "bg-heat-soon text-heat-ink",
   urgent: "bg-heat-urgent text-heat-ink",
   critical: "bg-heat-critical text-heat-ink",
   overdue: "bg-heat-overdue text-heat-ink",
-};
-
-/** Small-cap urgency labels (TradingView "industry" sub-label). */
-const URGENCY_LABEL: Record<UrgencyLevel, string> = {
-  calm: "CALM",
-  soon: "SOON",
-  urgent: "URGENT",
-  critical: "CRITICAL",
-  overdue: "OVERDUE",
 };
 
 /** Print world: no pulse · solid ink is the alarm. Kept for API parity. */
@@ -62,21 +53,22 @@ interface TileProps {
   daysLeft: number;
   urgency: UrgencyLevel;
   icon: LucideIcon | null;
-  /** the soonest due item on the board · gets a bright hairline */
+  /** the soonest due item on the board */
   isSoonest?: boolean;
+  hot?: boolean;
+  selected?: boolean;
   /** entrance stagger index (largest-first = 0); undefined = no entrance */
   index?: number;
   onHoverChange?: (id: string | null) => void;
   onSelect?: (id: string) => void;
+  onOpen?: (id: string) => void;
   onFocusChange?: (id: string | null) => void;
 }
 
 /** Pixel budgets for the in-tile labels (TradingView-style density). */
-const FULL_MIN_W = 96;
-const FULL_MIN_H = 60;
-const SUBHEAD_MIN_W = 60;
-const SUBHEAD_MIN_H = 44;
-const TICKER_MIN = 40;
+const FULL_MIN_W = 72;
+const FULL_MIN_H = 52;
+const TICKER_MIN = 36;
 
 function TileInner({
   id,
@@ -90,17 +82,19 @@ function TileInner({
   urgency,
   icon: Icon,
   isSoonest,
+  hot,
+  selected,
   index,
   onHoverChange,
   onSelect,
+  onOpen,
   onFocusChange,
 }: TileProps) {
   const reduced = useReducedMotion();
   const showFull = width >= FULL_MIN_W && height >= FULL_MIN_H;
-  const showSubhead = width >= SUBHEAD_MIN_W && height >= SUBHEAD_MIN_H;
   const showTicker = width >= TICKER_MIN && height >= TICKER_MIN;
   const showCost = showFull && cost != null;
-  const showIcon = showFull && Icon != null;
+  const showIcon = width >= 96 && height >= 72 && Icon != null;
   const label = `${title}${cost ? `, ${cost} per year` : ""}, ${daysLabel(daysLeft)}`;
 
   return (
@@ -115,60 +109,42 @@ function TileInner({
         ...SMOOTH_SPRING,
         ...(index != null && !reduced ? { delay: Math.min(index * 0.03, 0.6) } : {}),
       }}
+      data-tile-id={id}
       onClick={() => onSelect?.(id)}
+      onDoubleClick={() => onOpen?.(id)}
       onHoverStart={() => onHoverChange?.(id)}
       onHoverEnd={() => onHoverChange?.(null)}
       onFocus={() => onFocusChange?.(id)}
       onBlur={() => onFocusChange?.(null)}
-      whileHover={reduced ? undefined : { scale: 1.005 }}
       aria-label={label}
       className={cn(
-        "group absolute flex cursor-pointer flex-col overflow-hidden border-[0.5px] p-1.5 text-left outline-none",
-        isSoonest ? "border-heat-ink" : "border-heat-rule/60",
+        "group absolute flex cursor-pointer flex-col items-center justify-center overflow-hidden border border-transparent p-1.5 text-center outline-none",
         "focus-visible:ring-2 focus-visible:ring-heat-ink/70",
         "hover:z-20 focus-visible:z-20",
+        (hot || selected) && "z-20 shadow-[inset_0_0_0_2px_#1c1917]",
         URGENCY_FILL[urgency],
         URGENCY_PULSE[urgency],
       )}
       style={{ left: x, top: y, width, height }}
     >
-      {showSubhead && (
-        <span
-          className="ledger-cap pointer-events-none truncate text-[8px] tracking-[0.1em] text-heat-ink-muted"
-          aria-hidden
-        >
-          {URGENCY_LABEL[urgency]}
-        </span>
-      )}
-      {showTicker && (
-        <span
-          className="tabular pointer-events-none absolute right-1.5 top-1 text-[11px] font-semibold tracking-tight"
-          style={{ fontFamily: "var(--font-mono-var)" }}
-        >
-          {daysTicker(daysLeft)}
-        </span>
-      )}
-      {showFull && (
-        <span
-          className="pointer-events-none mt-auto line-clamp-2 text-[13px] leading-[1.15] font-semibold tracking-[-0.01em]"
-        >
-          {title}
-        </span>
-      )}
-      {showCost && (
-        <span
-          className="tabular pointer-events-none text-[9px] text-heat-ink-muted"
-          style={{ fontFamily: "var(--font-mono-var)" }}
-        >
-          {cost}
-        </span>
-      )}
-      {showIcon && Icon != null && (
-        <Icon
-          aria-hidden
-          className="pointer-events-none absolute right-1.5 bottom-1 size-3 text-heat-ink-muted/70"
-        />
-      )}
+      <span className="pointer-events-none flex h-full w-full flex-col items-center justify-center gap-0.5 px-2 text-center">
+        {showIcon && Icon != null && <Icon aria-hidden className="mb-0.5 size-4 opacity-80" />}
+        {showFull && (
+          <span className="line-clamp-2 text-base leading-tight font-semibold tracking-[-0.01em]">
+            {title}
+          </span>
+        )}
+        {showTicker && (
+          <span className="tabular text-sm font-semibold" style={{ fontFamily: "var(--font-mono-var)" }}>
+            {daysTicker(daysLeft)}
+          </span>
+        )}
+        {showCost && (
+          <span className="tabular text-xs text-heat-ink-muted" style={{ fontFamily: "var(--font-mono-var)" }}>
+            {cost}
+          </span>
+        )}
+      </span>
     </motion.button>
   );
 }

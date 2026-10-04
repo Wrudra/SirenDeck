@@ -13,13 +13,12 @@ import {
 } from "lucide-react";
 
 import { ItemFormDialog } from "@/components/items/item-form-dialog";
-import { cn } from "cn";
 import { buildMapModel, type MapItem } from "@/lib/map/map-model";
-import { layoutGrouped, type GroupRect } from "@/lib/map/treemap";
+import { layoutFlat, layoutGrouped, type GroupRect } from "@/lib/map/treemap";
 import { formatCost } from "@/lib/money";
 import { getUrgency } from "@/lib/urgency";
 import type { CategoryRow, ItemRow } from "@/lib/validation/item";
-import { MapTooltip, type TooltipRect } from "./map-tooltip";
+import { MapTooltip } from "./map-tooltip";
 import { SummaryStrip } from "./summary-strip";
 import { Tile, daysLabel } from "./tile";
 import { UnpricedShelf } from "./unpriced-shelf";
@@ -43,6 +42,8 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [zoomId, setZoomId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -55,6 +56,28 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    function onDown(e: PointerEvent) {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest(`[data-tile-id="${selectedId}"]`)) return;
+      setSelectedId(null);
+    }
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [selectedId]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      if (zoomId) setZoomId(null);
+      else setSelectedId(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoomId]);
 
   const model = useMemo(() => buildMapModel(items), [items]);
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
@@ -76,26 +99,31 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
       list.push(item);
       groups.set(item.categoryId, list);
     }
-    return layoutGrouped(
-      [...groups.entries()].map(([id, list]) => ({
-        id,
-        children: list.map((i) => ({ id: i.id, value: i.yearCost ?? 0 })),
-      })),
-      container.w,
-      container.h,
-    );
-  }, [container, model]);
+    const entries = [...groups.entries()].map(([id, list]) => ({
+      id,
+      children: list.map((i) => ({ id: i.id, value: i.yearCost ?? 0 })),
+    }));
 
-  const rectById = useMemo(() => {
-    const map = new Map<string, TooltipRect>();
-    if (!groupRects) return map;
-    for (const g of groupRects) {
-      for (const c of g.children) {
-        map.set(c.id, { x: c.x + g.x, y: c.y + g.y, width: c.width, height: c.height });
-      }
+    if (zoomId) {
+      const group = entries.find((g) => g.id === zoomId);
+      if (!group) return [];
+      return [
+        {
+          id: group.id,
+          x: 0,
+          y: 0,
+          width: container.w,
+          height: container.h,
+          children: layoutFlat(group.children, container.w, container.h, 2),
+        },
+      ];
     }
-    return map;
-  }, [groupRects]);
+
+    return layoutGrouped(entries, container.w, container.h, {
+      paddingInner: 3,
+      headerHeight: 22,
+    });
+  }, [container, model, zoomId]);
 
   const itemById = useMemo(() => {
     const map = new Map<string, MapItem>();
@@ -107,9 +135,9 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
 
   const openEdit = useCallback((id: string) => setEditingId(id), []);
   const closeEdit = useCallback(() => setEditingId(null), []);
+  const onTileSelect = useCallback((id: string) => setSelectedId(id), []);
 
-  const activeId = hoveredId ?? focusedId;
-  const activeRect = activeId ? (rectById.get(activeId) ?? null) : null;
+  const activeId = hoveredId ?? selectedId ?? focusedId;
   const activeItem = activeId ? (itemById.get(activeId) ?? null) : null;
 
   const empty = items.length === 0;
@@ -150,81 +178,102 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
             </div>
           </div>
         ) : (
+        <>
+        {zoomId && (
+          <div className="flex h-8 shrink-0 items-center gap-1.5 bg-bg px-3 text-sm text-ink">
+            <button
+              type="button"
+              onClick={() => setZoomId(null)}
+              className="rounded-sm px-1 text-ink-muted hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              ‹ All
+            </button>
+            <span className="text-ink-muted">·</span>
+            <span className="truncate">{categoryById.get(zoomId)?.name ?? "Category"}</span>
+          </div>
+        )}
         <div
           ref={ref}
-          className="relative min-h-0 flex-1 overflow-hidden bg-heat-bg p-px"
+          className="relative min-h-0 flex-1 overflow-hidden bg-heat-bg"
           aria-label="Money Map: treemap of items sized by yearly cost, colored by urgency. Full list follows."
         >
           {groupRects && (
-            <AnimatePresence>
-              {groupRects.map((group) => {
-                const category = categoryById.get(group.id);
-                const groupItems = group.children
-                  .map((c) => itemById.get(c.id))
-                  .filter((x): x is MapItem => x != null);
-                const groupYearly = groupItems.reduce(
-                  (s, it) => s + (it.yearCost ?? 0),
-                  0,
-                );
-                const groupCurrency = groupItems[0]?.currency ?? "BDT";
-                return (
-                  <section
-                    key={group.id}
-                    aria-label={category?.name ?? "Uncategorized"}
-                    className="absolute"
-                    style={{ left: group.x, top: group.y, width: group.width, height: group.height }}
-                  >
-                    <header
-                      className={cn(
-                        "ledger-cap absolute inset-x-0 top-0 z-10 flex h-5 items-center justify-between gap-2 px-2",
-                        "bg-ink text-heat-ink",
-                      )}
+            <>
+              {!zoomId &&
+                groupRects.map((group) => {
+                  const category = categoryById.get(group.id);
+                  return (
+                    <button
+                      key={group.id}
+                      type="button"
+                      onClick={() => {
+                        setHoveredId(null);
+                        setZoomId(group.id);
+                      }}
+                      className="ledger-cap absolute z-10 flex h-[22px] cursor-zoom-in items-center justify-between gap-2 bg-black px-2 text-left text-white hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/70"
+                      style={{ left: group.x, top: group.y, width: group.width }}
+                      aria-label={`Zoom into ${category?.name ?? "this category"}`}
                     >
-                      <span className="truncate text-[9px] tracking-[0.12em]">
-                        {category?.name?.toUpperCase() ?? "UNCATEGORIZED"}
+                      <span className="truncate text-sm font-medium normal-case tracking-normal">
+                        {category?.name ?? "Uncategorized"}
+                        <span className="ml-1 text-white/60">›</span>
                       </span>
-                      <span className="tabular flex shrink-0 items-baseline gap-1.5 text-[9px]">
-                        <span className="opacity-70">{groupItems.length}</span>
-                        <span className="opacity-90">{formatCost(groupYearly, groupCurrency)}</span>
-                      </span>
-                    </header>
-                    {group.children.map((child, i) => {
-                      const item = itemById.get(child.id);
-                      if (!item) return null;
-                      return (
-                        <Tile
-                          key={child.id}
-                          id={child.id}
-                          x={child.x}
-                          y={child.y + 20}
-                          width={child.width}
-                          height={Math.max(0, child.height - 20)}
-                          title={item.title}
-                          cost={formatCost(item.yearCost, item.currency)}
-                          daysLeft={item.daysLeft}
-                          urgency={item.urgency}
-                          icon={iconFor(categoryById.get(item.categoryId))}
-                          isSoonest={child.id === soonestId}
-                          index={i}
-                          onHoverChange={setHoveredId}
-                          onSelect={openEdit}
-                          onFocusChange={setFocusedId}
-                        />
-                      );
-                    })}
-                  </section>
-                );
-              })}
-            </AnimatePresence>
+                    </button>
+                  );
+                })}
+              <AnimatePresence>
+                {groupRects.flatMap((group) =>
+                  group.children.map((child, i) => {
+                    const item = itemById.get(child.id);
+                    if (!item) return null;
+                    return (
+                      <Tile
+                        key={child.id}
+                        id={child.id}
+                        x={child.x + group.x}
+                        y={child.y + group.y}
+                        width={child.width}
+                        height={child.height}
+                        title={item.title}
+                        cost={formatCost(item.yearCost, item.currency)}
+                        daysLeft={item.daysLeft}
+                        urgency={item.urgency}
+                        icon={iconFor(categoryById.get(item.categoryId))}
+                        isSoonest={child.id === soonestId}
+                        hot={child.id === hoveredId}
+                        selected={child.id === selectedId}
+                        index={i}
+                        onHoverChange={setHoveredId}
+                        onSelect={onTileSelect}
+                        onOpen={openEdit}
+                        onFocusChange={setFocusedId}
+                      />
+                    );
+                  }),
+                )}
+              </AnimatePresence>
+            </>
           )}
+
+          {hoveredId && !zoomId && groupRects && (() => {
+            const item = itemById.get(hoveredId);
+            const g = item && groupRects.find((group) => group.id === item.categoryId);
+            if (!g) return null;
+            return (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute z-30 border-2 border-black"
+                style={{ left: g.x, top: g.y, width: g.width, height: g.height }}
+              />
+            );
+          })()}
 
           <MapTooltip
             item={activeItem}
-            rect={activeRect}
             category={activeItem ? categoryById.get(activeItem.categoryId) : undefined}
-            canvasWidth={container?.w ?? 0}
           />
         </div>
+        </>
         )}
 
         <UnpricedShelf items={model.shelf} onAddCost={openEdit} />
