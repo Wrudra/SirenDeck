@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { cn } from "cn";
 import type { UrgencyLevel } from "@/lib/urgency";
+import { labelBudget, titleMonogram } from "@/lib/map/label-budget";
 
 /** Muted heatmap fills. Dark text on all levels. */
 export const URGENCY_FILL: Record<UrgencyLevel, string> = {
@@ -65,35 +66,6 @@ interface TileProps {
   onFocusChange?: (id: string | null) => void;
 }
 
-/** Pixel budgets for the in-tile labels (TradingView-style density). */
-const FULL_MIN_W = 72;
-const TICKER_MIN = 36;
-
-/** Rough line heights (px) of the stacked labels, incl. their gap. */
-const PAD_Y = 12; // p-1.5 top + bottom
-const PAD_X = 28; // p-1.5 + px-2, both sides
-const TITLE_LINE = 20; // text-base leading-tight
-const TITLE_CHAR = 9; // avg glyph width, semibold 16px
-const TICKER_LINE = 22;
-const COST_LINE = 18;
-const ICON_LINE = 22;
-
-/**
- * Which labels fit, top-down by priority (title + ticker, then cost, then
- * icon), so a short tile drops extras instead of clipping its title.
- */
-function labelBudget(width: number, height: number, title: string, hasCost: boolean, hasIcon: boolean) {
-  const showTicker = width >= TICKER_MIN && height >= TICKER_MIN;
-  const textW = Math.max(width - PAD_X, 1);
-  const titleLines = Math.min(2, Math.ceil((title.length * TITLE_CHAR) / textW));
-  let used = PAD_Y + titleLines * TITLE_LINE + TICKER_LINE;
-  const showFull = width >= FULL_MIN_W && height >= used;
-  const showCost = showFull && hasCost && height >= used + COST_LINE;
-  if (showCost) used += COST_LINE;
-  const showIcon = showFull && hasIcon && width >= 96 && height >= used + ICON_LINE;
-  return { showFull, showTicker, showCost, showIcon };
-}
-
 function TileInner({
   id,
   x,
@@ -115,7 +87,7 @@ function TileInner({
   onFocusChange,
 }: TileProps) {
   const reduced = useReducedMotion();
-  const { showFull, showTicker, showCost, showIcon } = labelBudget(
+  const { showTitle, titleLines, showTicker, showCost, showIcon, showMonogram } = labelBudget(
     width,
     height,
     title,
@@ -156,9 +128,19 @@ function TileInner({
     >
       <span className="pointer-events-none flex h-full w-full flex-col items-center justify-center gap-0.5 px-2 text-center">
         {showIcon && Icon != null && <Icon aria-hidden className="mb-0.5 size-4 opacity-80" />}
-        {showFull && (
-          <span className="line-clamp-2 text-base leading-tight font-semibold tracking-[-0.01em]">
+        {showTitle && (
+          <span
+            className={cn(
+              "text-base leading-tight font-semibold tracking-[-0.01em]",
+              titleLines === 1 ? "line-clamp-1" : "line-clamp-2",
+            )}
+          >
             {title}
+          </span>
+        )}
+        {showMonogram && (
+          <span className="text-base leading-none font-semibold tracking-[-0.01em] opacity-90">
+            {titleMonogram(title)}
           </span>
         )}
         {showTicker && (

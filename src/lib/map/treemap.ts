@@ -176,9 +176,10 @@ export function layoutGroupedReadable(
     const input: GroupDatum[] = [...real];
     if (bucketId) {
       const children = folded.flatMap((g) => g.children);
-      // Inside the bucket, keep every tile at least half its largest
-      // sibling so a $5 line item doesn't collapse to a hairline.
-      const floor = Math.max(...children.map((c) => c.value)) * 0.5;
+      // Inside the bucket, keep every tile at least ~2/3 of its largest
+      // sibling so a $5 line item doesn't collapse below a readable
+      // ~40–48px leaf (half-size neighbors were crushing labels).
+      const floor = Math.max(...children.map((c) => c.value)) * 0.65;
       input.push({
         id: bucketId,
         children: children.map((c) => ({ id: c.id, value: Math.max(c.value, floor) * boost })),

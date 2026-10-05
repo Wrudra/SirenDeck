@@ -176,6 +176,17 @@ describe("layoutGroupedReadable", () => {
     expect(tiny.width).toBeGreaterThanOrEqual(95.5);
   });
 
+
+  it("Other half-size floor keeps crushed leaves above ~40px", () => {
+    // At 1024 the travel section also folds into Other; without a strong
+    // enough floor, Namecheap collapsed to ~35px and clipped labels.
+    const { rects, otherMembers } = layoutGroupedReadable(board, 1024, 470, opts);
+    expect(otherMembers.sort()).toEqual(["domains", "licenses", "travel"]);
+    const other = rects.find((r) => r.id === OTHER_GROUP_ID)!;
+    const minH = Math.min(...other.children.map((c) => c.height));
+    expect(minH).toBeGreaterThanOrEqual(40);
+  });
+
   it("leaves a balanced board untouched", () => {
     const groups = [
       { id: "g1", children: [{ id: "a", value: 50 }] },
