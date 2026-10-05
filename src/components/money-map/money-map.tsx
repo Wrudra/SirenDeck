@@ -13,7 +13,8 @@ import {
 } from "lucide-react";
 
 import { ItemFormDialog } from "@/components/items/item-form-dialog";
-import { buildMapModel, type MapItem } from "@/lib/map/map-model";
+import { buildMapModel, sumCategoryTotals, type MapItem } from "@/lib/map/map-model";
+import { fitSectionTotal, formatSectionTotal } from "@/lib/map/section-total";
 import {
   OTHER_GROUP_ID,
   layoutFlat,
@@ -124,6 +125,15 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
 
   const otherMembers = useMemo(() => overview?.otherMembers ?? [], [overview]);
 
+  /** Yearly total per section id; Other = sum of its folded categories. */
+  const sectionTotals = useMemo(() => {
+    const out = new Map(model.categoryTotals);
+    if (otherMembers.length > 0) {
+      out.set(OTHER_GROUP_ID, sumCategoryTotals(model.categoryTotals, otherMembers));
+    }
+    return out;
+  }, [model, otherMembers]);
+
   const otherLabel = useMemo(
     () => otherMembers.map((id) => categoryById.get(id)?.name ?? "Uncategorized").join(", "),
     [otherMembers, categoryById],
@@ -228,6 +238,14 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
             ) : (
               <span className="truncate">{categoryById.get(zoomId)?.name ?? "Category"}</span>
             )}
+            {(sectionTotals.get(zoomId)?.length ?? 0) > 0 && (
+              <span
+                className="tabular ml-auto shrink-0 pl-2 text-xs text-ink-muted"
+                style={{ fontFamily: "var(--font-mono-var)" }}
+              >
+                {formatSectionTotal(sectionTotals.get(zoomId)!)} / yr
+              </span>
+            )}
           </div>
         )}
         <div
@@ -242,6 +260,11 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                   const isOther = group.id === OTHER_GROUP_ID;
                   const category = isOther ? undefined : categoryById.get(group.id);
                   const name = isOther ? "Other" : (category?.name ?? "Uncategorized");
+                  const totals = sectionTotals.get(group.id) ?? [];
+                  const fullTotal = totals.length > 0 ? formatSectionTotal(totals) : null;
+                  // Name first: the figure shortens, then hides, on narrow bars.
+                  const shownTotal = fitSectionTotal(group.width, name, totals);
+                  const yearly = fullTotal ? `, ${fullTotal} a year` : "";
                   return (
                     <button
                       key={group.id}
@@ -252,13 +275,32 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                       }}
                       className="ledger-cap absolute z-10 flex h-[22px] cursor-zoom-in items-center justify-between gap-2 bg-black px-2 text-left text-white hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/70"
                       style={{ left: group.x, top: group.y, width: group.width }}
-                      title={isOther ? `Other: ${otherLabel}` : undefined}
-                      aria-label={isOther ? `Zoom into Other: ${otherLabel}` : `Zoom into ${name}`}
+                      title={
+                        isOther
+                          ? `Other: ${otherLabel}${fullTotal ? ` · ${fullTotal} / yr` : ""}`
+                          : fullTotal
+                            ? `${name} · ${fullTotal} / yr`
+                            : undefined
+                      }
+                      aria-label={
+                        isOther
+                          ? `Zoom into Other: ${otherLabel}${yearly}`
+                          : `Zoom into ${name}${yearly}`
+                      }
                     >
-                      <span className="truncate text-sm font-medium normal-case tracking-normal">
+                      <span className="min-w-0 truncate text-sm font-medium normal-case tracking-normal">
                         {name}
                         <span className="ml-1 text-white/60">›</span>
                       </span>
+                      {shownTotal && (
+                        <span
+                          aria-hidden
+                          className="tabular shrink-0 whitespace-nowrap text-[11px] font-normal normal-case tracking-normal text-white/70"
+                          style={{ fontFamily: "var(--font-mono-var)" }}
+                        >
+                          {shownTotal}
+                        </span>
+                      )}
                     </button>
                   );
                 })}

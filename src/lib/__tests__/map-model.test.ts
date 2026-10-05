@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildMapModel, TILE_CAP } from "../map/map-model";
+import { buildMapModel, sumCategoryTotals, TILE_CAP } from "../map/map-model";
 import type { ItemRow } from "../validation/item";
 
 const NOW = new Date("2026-10-04T00:00:00");
@@ -94,5 +94,51 @@ describe("buildMapModel", () => {
     );
     expect(model.tiles).toHaveLength(0);
     expect(model.shelf.map((s) => s.id)).toEqual(["zero"]);
+  });
+
+  it("totals yearly cost per category and currency, ignoring unpriced", () => {
+    const model = buildMapModel(
+      [
+        item({ id: "a", category_id: "ins", amount: "200000" }),
+        item({ id: "b", category_id: "ins", amount: "3500", recurrence: "monthly" }), // 42,000/yr
+        item({ id: "c", category_id: "ins", amount: null }),
+        item({ id: "d", category_id: "subs", amount: "10", currency: "USD", recurrence: "monthly" }),
+        item({ id: "e", category_id: "subs", amount: "500", recurrence: "monthly" }),
+      ],
+      NOW,
+    );
+
+    expect(model.categoryTotals.get("ins")).toEqual([{ currency: "BDT", total: 242_000 }]);
+    expect(model.categoryTotals.get("subs")).toEqual([
+      { currency: "BDT", total: 6000 },
+      { currency: "USD", total: 120 },
+    ]);
+  });
+
+  it("category totals include items merged past the tile cap", () => {
+    const items = Array.from({ length: TILE_CAP + 5 }, (_, i) =>
+      item({ id: `i${i}`, amount: "10" }),
+    );
+    const model = buildMapModel(items, NOW);
+    expect(model.categoryTotals.get("c1")).toEqual([
+      { currency: "BDT", total: 10 * (TILE_CAP + 5) },
+    ]);
+  });
+
+  it("sums folded categories for the Other section, per currency", () => {
+    const model = buildMapModel(
+      [
+        item({ id: "a", category_id: "x", amount: "100" }),
+        item({ id: "b", category_id: "y", amount: "250" }),
+        item({ id: "c", category_id: "y", amount: "5", currency: "USD" }),
+        item({ id: "d", category_id: "z", amount: "9999" }),
+      ],
+      NOW,
+    );
+    expect(sumCategoryTotals(model.categoryTotals, ["x", "y", "missing"])).toEqual([
+      { currency: "BDT", total: 350 },
+      { currency: "USD", total: 5 },
+    ]);
+    expect(sumCategoryTotals(model.categoryTotals, [])).toEqual([]);
   });
 });

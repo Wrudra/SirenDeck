@@ -34,6 +34,12 @@ export interface SummaryLine {
   overdue: number;
 }
 
+/** One currency's share of a yearly total. */
+export interface CurrencyTotal {
+  currency: Currency;
+  total: number;
+}
+
 export interface MapModel {
   /** priced items, largest-first · tile render order (stagger largest first) */
   tiles: MapItem[];
@@ -43,6 +49,12 @@ export interface MapModel {
   shelf: MapItem[];
   /** totals per currency code */
   totals: { currency: Currency; line: SummaryLine }[];
+  /**
+   * categoryId → yearly cost of every priced item in that category, one
+   * entry per currency (largest first). Includes items merged past the tile
+   * cap, so a section title shows the category's true yearly total.
+   */
+  categoryTotals: Map<string, CurrencyTotal[]>;
   itemCount: number;
 }
 
@@ -132,5 +144,38 @@ export function buildMapModel(
   }
   const totals = [...byCurrency.entries()].map(([currency, line]) => ({ currency, line }));
 
-  return { tiles, other, shelf, totals, itemCount: items.length };
+  // Per-category yearly totals (section titles).
+  const byCategory = new Map<string, Map<Currency, number>>();
+  for (const item of priced) {
+    const sums = byCategory.get(item.categoryId) ?? new Map<Currency, number>();
+    sums.set(item.currency, (sums.get(item.currency) ?? 0) + (item.yearCost ?? 0));
+    byCategory.set(item.categoryId, sums);
+  }
+  const categoryTotals = new Map<string, CurrencyTotal[]>();
+  for (const [id, sums] of byCategory) categoryTotals.set(id, sortTotals(sums));
+
+  return { tiles, other, shelf, totals, categoryTotals, itemCount: items.length };
+}
+
+function sortTotals(sums: Map<Currency, number>): CurrencyTotal[] {
+  return [...sums.entries()]
+    .map(([currency, total]) => ({ currency, total }))
+    .sort((a, b) => b.total - a.total || a.currency.localeCompare(b.currency));
+}
+
+/**
+ * Yearly total across several categories (the synthetic Other section),
+ * still split per currency · amounts in different currencies never mix.
+ */
+export function sumCategoryTotals(
+  categoryTotals: Map<string, CurrencyTotal[]>,
+  categoryIds: readonly string[],
+): CurrencyTotal[] {
+  const sums = new Map<Currency, number>();
+  for (const id of new Set(categoryIds)) {
+    for (const { currency, total } of categoryTotals.get(id) ?? []) {
+      sums.set(currency, (sums.get(currency) ?? 0) + total);
+    }
+  }
+  return sortTotals(sums);
 }
