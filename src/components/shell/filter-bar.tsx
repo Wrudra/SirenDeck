@@ -36,7 +36,7 @@ function appliedChips(
   categories: CategoryRow[],
 ): { key: string; label: string; param: string }[] {
   const chips: { key: string; label: string; param: string }[] = [];
-  if (filters.q) chips.push({ key: "q", label: `“${filters.q}”`, param: "q" });
+  if (filters.q) chips.push({ key: "q", label: `\u201c${filters.q}\u201d`, param: "q" });
   if (filters.categoryId) {
     const name = categories.find((c) => c.id === filters.categoryId)?.name ?? "Category";
     chips.push({ key: "category", label: name, param: "category" });
@@ -55,6 +55,15 @@ function appliedChips(
     chips.push({ key: "window", label: WINDOW_LABELS[filters.window], param: "window" });
   }
   return chips;
+}
+
+/** Keep the active view when wiping filters so MAP\leftrightarrow LEDGER does not jump. */
+function clearFilterParams(searchParams: URLSearchParams): string {
+  const params = new URLSearchParams();
+  const view = searchParams.get("view");
+  if (view === "map" || view === "list") params.set("view", view);
+  const qs = params.toString();
+  return qs ? `/app?${qs}` : "/app";
 }
 
 export function FilterBar({
@@ -108,7 +117,7 @@ export function FilterBar({
   const filtering = hasActiveFilters(filters);
 
   const selectCls =
-    "h-7 appearance-none rounded-[var(--radius-control)] border border-rule-input bg-surface pl-2 pr-6 text-xs text-ink outline-none transition-colors hover:border-rule-strong focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-ink/50";
+    "h-7 appearance-none rounded-[var(--radius-control)] border border-rule-input bg-surface pl-2 pr-6 text-xs text-ink outline-none transition-colors duration-150 hover:border-rule-strong focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-ink/50";
 
   return (
     <div
@@ -116,43 +125,71 @@ export function FilterBar({
       aria-label="Filters"
       aria-busy={pending}
       className={cn(
-        "flex h-10 items-center gap-2 border-b border-rule bg-surface px-4",
+        "flex flex-col gap-2 border-b border-rule bg-surface px-3 py-2 transition-opacity duration-150 sm:h-10 sm:flex-row sm:items-center sm:gap-2 sm:px-4 sm:py-0",
         pending && "opacity-70",
       )}
     >
-      {/* search */}
-      <div className="relative">
-        <SearchIcon
-          aria-hidden
-          className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-ink-muted"
-        />
-        <input
-          type="search"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search titles or notes…"
-          aria-label="Search items"
-          className="h-7 w-44 rounded-[var(--radius-control)] border border-rule-input bg-surface pl-7 pr-2 text-xs outline-none transition-colors placeholder:text-ink-muted focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-ink/50 [&::-webkit-search-cancel-button]:hidden"
-        />
-        {q && (
-          <button
-            type="button"
-            onClick={() => {
-              setQ("");
-              setParam({ q: null });
-            }}
-            aria-label="Clear search"
-            className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-[var(--radius-control)] p-0.5 text-ink-muted hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-          >
-            <XIcon className="size-3" aria-hidden />
-          </button>
-        )}
+      <div className="flex min-w-0 items-center gap-2">
+        {/* search */}
+        <div className="relative min-w-0 flex-1 sm:flex-none">
+          <SearchIcon
+            aria-hidden
+            className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-ink-muted"
+          />
+          <input
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search titles or notes…"
+            aria-label="Search items"
+            className="h-7 w-full rounded-[var(--radius-control)] border border-rule-input bg-surface pl-7 pr-7 text-xs outline-none transition-colors duration-150 placeholder:text-ink-muted focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-ink/50 sm:w-44 [&::-webkit-search-cancel-button]:hidden"
+          />
+          {q && (
+            <button
+              type="button"
+              onClick={() => {
+                setQ("");
+                setParam({ q: null });
+              }}
+              aria-label="Clear search"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded-[var(--radius-control)] p-0.5 text-ink-muted transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+            >
+              <XIcon className="size-3" aria-hidden />
+            </button>
+          )}
+        </div>
+
+        {/* count + clear · always reachable on mobile */}
+        <div className="ml-auto flex shrink-0 items-center gap-2 sm:hidden">
+          {filtering && (
+            <>
+              <span className="tabular text-xs text-ink-muted" style={{ fontFamily: "var(--font-mono-var)" }}>
+                {shownCount}/{totalCount}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setQ("");
+                  startTransition(() => {
+                    router.push(clearFilterParams(new URLSearchParams(searchParams.toString())), {
+                      scroll: false,
+                    });
+                  });
+                }}
+                className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-control)] border border-rule px-2 text-xs text-ink-muted transition-colors hover:border-rule-strong hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                <XIcon className="size-3" aria-hidden />
+                Clear
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* selects */}
-      <div className="flex items-center gap-1.5">
+      {/* selects · horizontal scroll on narrow screens */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] sm:pb-0 [&::-webkit-scrollbar]:hidden">
         <label className="sr-only" htmlFor="filter-category">Category</label>
-        <div className="relative">
+        <div className="relative shrink-0">
           <select
             id="filter-category"
             value={filters.categoryId ?? ""}
@@ -168,7 +205,7 @@ export function FilterBar({
         </div>
 
         <label className="sr-only" htmlFor="filter-urgency">Urgency</label>
-        <div className="relative">
+        <div className="relative shrink-0">
           <select
             id="filter-urgency"
             value={filters.urgency ?? ""}
@@ -184,7 +221,7 @@ export function FilterBar({
         </div>
 
         <label className="sr-only" htmlFor="filter-renew">Renewal</label>
-        <div className="relative">
+        <div className="relative shrink-0">
           <select
             id="filter-renew"
             value={filters.autoRenew == null ? "" : filters.autoRenew ? "yes" : "no"}
@@ -201,7 +238,7 @@ export function FilterBar({
         </div>
 
         <label className="sr-only" htmlFor="filter-window">Time window</label>
-        <div className="relative">
+        <div className="relative shrink-0">
           <select
             id="filter-window"
             value={filters.window}
@@ -218,18 +255,22 @@ export function FilterBar({
         </div>
       </div>
 
-      {/* count + clear */}
-      <div className="ml-auto flex items-center gap-2">
+      {/* count + clear · desktop */}
+      <div className="ml-auto hidden items-center gap-2 sm:flex">
         {filtering && (
           <>
-            <span className="hidden text-xs text-ink-muted sm:inline">
+            <span className="tabular text-xs text-ink-muted" style={{ fontFamily: "var(--font-mono-var)" }}>
               {shownCount} of {totalCount}
             </span>
             <button
               type="button"
               onClick={() => {
                 setQ("");
-                startTransition(() => router.push("/app", { scroll: false }));
+                startTransition(() => {
+                  router.push(clearFilterParams(new URLSearchParams(searchParams.toString())), {
+                    scroll: false,
+                  });
+                });
               }}
               className="inline-flex h-7 items-center gap-1 rounded-[var(--radius-control)] border border-rule px-2 text-xs text-ink-muted transition-colors hover:border-rule-strong hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
             >
@@ -240,16 +281,19 @@ export function FilterBar({
         )}
       </div>
 
-      {/* applied chips · visible on small screens where selects may scroll away */}
+      {/* applied chips */}
       {chips.length > 0 && (
-        <ul className="hidden items-center gap-1 md:flex" aria-label="Applied filters">
+        <ul
+          className="flex flex-wrap items-center gap-1 sm:flex-nowrap"
+          aria-label="Applied filters"
+        >
           {chips.map((chip) => (
             <li key={chip.key}>
               <button
                 type="button"
                 onClick={() => setParam({ [chip.param]: null })}
                 aria-label={`Remove filter: ${chip.label}`}
-                className="inline-flex h-6 max-w-40 items-center gap-1 rounded-[var(--radius-control)] border border-rule bg-surface-2 px-2 text-[11px] text-ink transition-colors hover:text-ink-muted"
+                className="inline-flex h-6 max-w-40 items-center gap-1 rounded-[var(--radius-control)] border border-rule bg-surface-2 px-2 text-[11px] text-ink transition-colors hover:border-rule-strong hover:text-ink-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
               >
                 <span className="truncate">{chip.label}</span>
                 <XIcon className="size-2.5 shrink-0" aria-hidden />

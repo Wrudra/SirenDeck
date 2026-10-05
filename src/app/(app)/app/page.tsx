@@ -52,7 +52,12 @@ export default async function AppPage({
         <ItemFormDialog
           categories={categories}
           trigger={
-            <Button size="sm" data-icon="inline-start" id="add-item">
+            <Button
+              size="sm"
+              data-icon="inline-start"
+              id="add-item"
+              className="plate rounded-[var(--radius-control)] border-transparent hover:bg-ink"
+            >
               <PlusIcon />
               Add item
             </Button>
@@ -61,7 +66,7 @@ export default async function AppPage({
       </div>
 
       {items.length === 0 && hasActiveFilters(filters) ? (
-        <ZeroResults query={filters.q} />
+        <ZeroResults query={filters.q} view={view} />
       ) : isList ? (
         <ItemList items={items} categories={categories} />
       ) : isMap ? (
@@ -82,18 +87,21 @@ export default async function AppPage({
   );
 }
 
-/** Keeps filter params when switching views. */
-function ZeroResults({ query }: { query: string }) {
+/** Keeps the active view when clearing filters — no MAP↔LEDGER jump. */
+function ZeroResults({ query, view }: { query: string; view: string | null }) {
+  const href =
+    view === "map" || view === "list" ? `/app?view=${view}` : "/app";
+
   return (
-    <div className="flex flex-1 items-center justify-center">
+    <div className="flex flex-1 items-center justify-center px-4">
       <div className="text-center">
         <p className="ledger-cap text-[11px] text-ink-muted">No entries match</p>
-        <p className="font-display mt-2 text-xl font-semibold">
+        <p className="font-display mt-2 text-xl font-semibold tracking-[-0.01em]">
           {query ? <>Nothing in the ledger for “{query}”.</> : "No items match these filters."}
         </p>
         <Link
-          href="/app"
-          className="mt-3 inline-flex h-7 items-center rounded-[var(--radius-control)] border border-rule px-2.5 text-xs text-ink-muted transition-colors hover:border-ink/50 hover:text-ink"
+          href={href}
+          className="mt-3 inline-flex h-7 items-center rounded-[var(--radius-control)] border border-rule px-2.5 text-xs text-ink-muted transition-colors duration-150 hover:border-ink/50 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
         >
           Clear filters
         </Link>

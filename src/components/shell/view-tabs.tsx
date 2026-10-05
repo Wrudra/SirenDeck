@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
 import { ListIcon, MapIcon } from "lucide-react";
 
 /**
@@ -10,9 +9,14 @@ import { ListIcon, MapIcon } from "lucide-react";
  * viewport-dependent · board list under md, Money Map at md+ (matches the
  * CSS dual-render in the page). Resolved after mount to avoid SSR mismatch;
  * until then explicit views still style correctly.
+ *
+ * Navigates inside startTransition so the shell stays mounted — no loading
+ * skeleton flash when flipping MAP ↔ LEDGER.
  */
 export function ViewTabs() {
+  const router = useRouter();
   const params = useSearchParams();
+  const [, startTransition] = useTransition();
   const explicit = params.get("view");
   const [isMobile, setIsMobile] = useState(false);
 
@@ -24,20 +28,22 @@ export function ViewTabs() {
     return () => mq.removeEventListener("change", update);
   }, []);
 
-  const active = explicit === "list" ? "list" : explicit === "map" ? "map" : isMobile ? "list" : "map";
+  const active =
+    explicit === "list" ? "list" : explicit === "map" ? "map" : isMobile ? "list" : "map";
 
-  const base = new URLSearchParams();
-  for (const [k, v] of params.entries()) {
-    if (k !== "view") base.set(k, v);
-  }
-  const href = (view: "map" | "list") => {
-    const qs = new URLSearchParams(base);
+  const go = (view: "map" | "list") => {
+    const qs = new URLSearchParams();
+    for (const [k, v] of params.entries()) {
+      if (k !== "view") qs.set(k, v);
+    }
     qs.set("view", view);
-    return `/app?${qs.toString()}`;
+    startTransition(() => {
+      router.push(`/app?${qs.toString()}`, { scroll: false });
+    });
   };
 
   const cls = (isActive: boolean) =>
-    `ledger-cap inline-flex h-8 items-center gap-1.5 border-b-2 px-2.5 text-[10px] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+    `ledger-cap inline-flex h-8 items-center gap-1.5 border-b-2 px-2.5 text-[10px] transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
       isActive
         ? "border-ink text-ink"
         : "border-transparent text-ink-muted hover:text-ink"
@@ -45,14 +51,24 @@ export function ViewTabs() {
 
   return (
     <nav aria-label="View" className="flex items-center gap-1">
-      <Link href={href("map")} aria-current={active === "map" ? "page" : undefined} className={cls(active === "map")}>
+      <button
+        type="button"
+        onClick={() => go("map")}
+        aria-current={active === "map" ? "page" : undefined}
+        className={cls(active === "map")}
+      >
         <MapIcon className="size-3.5" aria-hidden />
         Map
-      </Link>
-      <Link href={href("list")} aria-current={active === "list" ? "page" : undefined} className={cls(active === "list")}>
+      </button>
+      <button
+        type="button"
+        onClick={() => go("list")}
+        aria-current={active === "list" ? "page" : undefined}
+        className={cls(active === "list")}
+      >
         <ListIcon className="size-3.5" aria-hidden />
         Ledger
-      </Link>
+      </button>
     </nav>
   );
 }

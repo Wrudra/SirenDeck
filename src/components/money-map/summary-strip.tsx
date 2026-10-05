@@ -114,12 +114,14 @@ export function SummaryStrip({ model }: { model: MapModel }) {
             value={line.totalYearly}
             format={(v) => formatCost(v, currency) ?? "·"}
           />
+          <div className="hidden h-8 w-px bg-rule sm:block" aria-hidden />
           <SummaryMetric
             label="Next 30d"
             value={line.dueIn30}
             format={(v) => formatCost(v, currency) ?? ""}
             emphasis={line.dueIn30 > 0 ? "dueSoon" : undefined}
           />
+          <div className="hidden h-8 w-px bg-rule sm:block" aria-hidden />
           <SummaryMetric
             label="Overdue"
             value={line.overdue}
