@@ -114,3 +114,98 @@ export function layoutGrouped(
     })),
   }));
 }
+
+/** Synthetic section id for tiny categories folded together. */
+export const OTHER_GROUP_ID = "__other_group__";
+
+export interface ReadableGroupedLayout {
+  rects: GroupRect[];
+  /**
+   * Category ids folded into the synthetic {@link OTHER_GROUP_ID} section.
+   * Empty when nothing was merged, or when a single small category was
+   * kept under its own id (and only enlarged).
+   */
+  otherMembers: string[];
+}
+
+/**
+ * {@link layoutGrouped} with a readability pass: no category section may end
+ * up narrower than `minGroupWidth` or shorter than `minGroupHeight` (a thin
+ * sliver can't hold its title or tiles).
+ *
+ * Undersized sections are pulled into one "small" bucket. Two or more
+ * become the synthetic Other section ({@link OTHER_GROUP_ID}); a lone one
+ * keeps its own id. If the bucket itself is still undersized, its layout
+ * weight is boosted until it clears the minimum. Readable labels win over
+ * area fidelity for tiny categories; big categories stay proportional.
+ */
+export function layoutGroupedReadable(
+  groups: GroupDatum[],
+  width: number,
+  height: number,
+  opts: {
+    paddingInner?: number;
+    headerHeight?: number;
+    minGroupWidth?: number;
+    minGroupHeight?: number;
+  } = {},
+): ReadableGroupedLayout {
+  const {
+    paddingInner = 1,
+    headerHeight = 24,
+    minGroupWidth = 96,
+    minGroupHeight = headerHeight + 44,
+  } = opts;
+  const layoutOpts = { paddingInner, headerHeight };
+  const plain = () => ({ rects: layoutGrouped(groups, width, height, layoutOpts), otherMembers: [] });
+
+  // Nothing to merge, or a canvas too small for two readable sections.
+  if (groups.length < 2 || width < minGroupWidth * 2 || height < minGroupHeight) return plain();
+
+  const isThin = (r: GroupRect) => r.width < minGroupWidth - 0.5 || r.height < minGroupHeight - 0.5;
+  const members = new Set<string>();
+  let boost = 1;
+  let rects: GroupRect[] = [];
+  let bucketId: string | null = null;
+
+  for (let iter = 0; iter < 16; iter++) {
+    const real = groups.filter((g) => !members.has(g.id));
+    const folded = groups.filter((g) => members.has(g.id));
+    bucketId = folded.length === 0 ? null : folded.length === 1 ? folded[0].id : OTHER_GROUP_ID;
+
+    const input: GroupDatum[] = [...real];
+    if (bucketId) {
+      const children = folded.flatMap((g) => g.children);
+      // Inside the bucket, keep every tile at least half its largest
+      // sibling so a $5 line item doesn't collapse to a hairline.
+      const floor = Math.max(...children.map((c) => c.value)) * 0.5;
+      input.push({
+        id: bucketId,
+        children: children.map((c) => ({ id: c.id, value: Math.max(c.value, floor) * boost })),
+      });
+    }
+
+    rects = layoutGrouped(input, width, height, layoutOpts);
+
+    const thinReal = rects.filter((r) => r.id !== bucketId && isThin(r));
+    // Never fold the last real section away: keep at least one proportional.
+    if (thinReal.length > 0 && real.length - thinReal.length >= 1) {
+      for (const r of thinReal) members.add(r.id);
+      boost = 1; // bucket changed; re-derive its weight from scratch
+      continue;
+    }
+
+    const bucket = bucketId ? rects.find((r) => r.id === bucketId) : undefined;
+    if (bucket && isThin(bucket)) {
+      const need = Math.max(minGroupWidth / bucket.width, minGroupHeight / bucket.height);
+      boost *= Math.min(Math.max(need * need, 1.25), 8);
+      continue;
+    }
+    break;
+  }
+
+  return {
+    rects,
+    otherMembers: bucketId === OTHER_GROUP_ID ? [...members] : [],
+  };
+}

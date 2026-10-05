@@ -14,7 +14,13 @@ import {
 
 import { ItemFormDialog } from "@/components/items/item-form-dialog";
 import { buildMapModel, type MapItem } from "@/lib/map/map-model";
-import { layoutFlat, layoutGrouped, type GroupRect } from "@/lib/map/treemap";
+import {
+  OTHER_GROUP_ID,
+  layoutFlat,
+  layoutGroupedReadable,
+  type GroupDatum,
+  type GroupRect,
+} from "@/lib/map/treemap";
 import { formatCost } from "@/lib/money";
 import { getUrgency } from "@/lib/urgency";
 import type { CategoryRow, ItemRow } from "@/lib/validation/item";
@@ -42,7 +48,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [zoomId, setZoomId] = useState<string | null>(null);
+  const [requestedZoomId, setZoomId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -72,12 +78,12 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
-      if (zoomId) setZoomId(null);
+      if (requestedZoomId) setZoomId(null);
       else setSelectedId(null);
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [zoomId]);
+  }, [requestedZoomId]);
 
   const model = useMemo(() => buildMapModel(items), [items]);
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
@@ -90,40 +96,72 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
     return ranked[0]?.id ?? null;
   }, [items]);
 
-  const groupRects = useMemo<GroupRect[] | null>(() => {
-    if (!container || container.w <= 0 || container.h <= 0) return null;
-
+  const entries = useMemo<GroupDatum[]>(() => {
     const groups = new Map<string, MapItem[]>();
     for (const item of model.tiles) {
       const list = groups.get(item.categoryId) ?? [];
       list.push(item);
       groups.set(item.categoryId, list);
     }
-    const entries = [...groups.entries()].map(([id, list]) => ({
+    return [...groups.entries()].map(([id, list]) => ({
       id,
       children: list.map((i) => ({ id: i.id, value: i.yearCost ?? 0 })),
     }));
+  }, [model]);
 
-    if (zoomId) {
-      const group = entries.find((g) => g.id === zoomId);
-      if (!group) return [];
-      return [
-        {
-          id: group.id,
-          x: 0,
-          y: 0,
-          width: container.w,
-          height: container.h,
-          children: layoutFlat(group.children, container.w, container.h, 2),
-        },
-      ];
-    }
-
-    return layoutGrouped(entries, container.w, container.h, {
+  /**
+   * Overview layout. Categories too small for a readable section (below
+   * ~96px wide) are folded into one "Other" section instead of thin slivers.
+   */
+  const overview = useMemo(() => {
+    if (!container || container.w <= 0 || container.h <= 0) return null;
+    return layoutGroupedReadable(entries, container.w, container.h, {
       paddingInner: 3,
       headerHeight: 22,
+      minGroupWidth: 96,
     });
-  }, [container, model, zoomId]);
+  }, [container, entries]);
+
+  const otherMembers = useMemo(() => overview?.otherMembers ?? [], [overview]);
+
+  /** The overview section an item's category is drawn in. */
+  const sectionIdFor = useCallback(
+    (categoryId: string) => (otherMembers.includes(categoryId) ? OTHER_GROUP_ID : categoryId),
+    [otherMembers],
+  );
+
+  const otherLabel = useMemo(
+    () => otherMembers.map((id) => categoryById.get(id)?.name ?? "Uncategorized").join(", "),
+    [otherMembers, categoryById],
+  );
+
+  // A resize can dissolve the Other section while zoomed into it: fall back
+  // to the overview rather than an empty zoom.
+  const zoomId =
+    requestedZoomId === OTHER_GROUP_ID && overview && otherMembers.length === 0
+      ? null
+      : requestedZoomId;
+
+  const groupRects = useMemo<GroupRect[] | null>(() => {
+    if (!container || !overview) return null;
+    if (!zoomId) return overview.rects;
+
+    const children =
+      zoomId === OTHER_GROUP_ID
+        ? entries.filter((g) => otherMembers.includes(g.id)).flatMap((g) => g.children)
+        : (entries.find((g) => g.id === zoomId)?.children ?? []);
+    if (children.length === 0) return [];
+    return [
+      {
+        id: zoomId,
+        x: 0,
+        y: 0,
+        width: container.w,
+        height: container.h,
+        children: layoutFlat(children, container.w, container.h, 2),
+      },
+    ];
+  }, [container, overview, entries, otherMembers, zoomId]);
 
   const itemById = useMemo(() => {
     const map = new Map<string, MapItem>();
@@ -189,7 +227,13 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
               ‹ All
             </button>
             <span className="text-ink-muted">·</span>
-            <span className="truncate">{categoryById.get(zoomId)?.name ?? "Category"}</span>
+            {zoomId === OTHER_GROUP_ID ? (
+              <span className="truncate">
+                Other <span className="text-ink-muted">({otherLabel})</span>
+              </span>
+            ) : (
+              <span className="truncate">{categoryById.get(zoomId)?.name ?? "Category"}</span>
+            )}
           </div>
         )}
         <div
@@ -201,7 +245,9 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
             <>
               {!zoomId &&
                 groupRects.map((group) => {
-                  const category = categoryById.get(group.id);
+                  const isOther = group.id === OTHER_GROUP_ID;
+                  const category = isOther ? undefined : categoryById.get(group.id);
+                  const name = isOther ? "Other" : (category?.name ?? "Uncategorized");
                   return (
                     <button
                       key={group.id}
@@ -212,10 +258,11 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                       }}
                       className="ledger-cap absolute z-10 flex h-[22px] cursor-zoom-in items-center justify-between gap-2 bg-black px-2 text-left text-white hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/70"
                       style={{ left: group.x, top: group.y, width: group.width }}
-                      aria-label={`Zoom into ${category?.name ?? "this category"}`}
+                      title={isOther ? `Other: ${otherLabel}` : undefined}
+                      aria-label={isOther ? `Zoom into Other: ${otherLabel}` : `Zoom into ${name}`}
                     >
                       <span className="truncate text-sm font-medium normal-case tracking-normal">
-                        {category?.name ?? "Uncategorized"}
+                        {name}
                         <span className="ml-1 text-white/60">›</span>
                       </span>
                     </button>
@@ -257,7 +304,8 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
 
           {hoveredId && !zoomId && groupRects && (() => {
             const item = itemById.get(hoveredId);
-            const g = item && groupRects.find((group) => group.id === item.categoryId);
+            const sectionId = item && sectionIdFor(item.categoryId);
+            const g = sectionId && groupRects.find((group) => group.id === sectionId);
             if (!g) return null;
             return (
               <div

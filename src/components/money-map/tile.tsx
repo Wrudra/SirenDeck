@@ -67,8 +67,32 @@ interface TileProps {
 
 /** Pixel budgets for the in-tile labels (TradingView-style density). */
 const FULL_MIN_W = 72;
-const FULL_MIN_H = 52;
 const TICKER_MIN = 36;
+
+/** Rough line heights (px) of the stacked labels, incl. their gap. */
+const PAD_Y = 12; // p-1.5 top + bottom
+const PAD_X = 28; // p-1.5 + px-2, both sides
+const TITLE_LINE = 20; // text-base leading-tight
+const TITLE_CHAR = 9; // avg glyph width, semibold 16px
+const TICKER_LINE = 22;
+const COST_LINE = 18;
+const ICON_LINE = 22;
+
+/**
+ * Which labels fit, top-down by priority (title + ticker, then cost, then
+ * icon), so a short tile drops extras instead of clipping its title.
+ */
+function labelBudget(width: number, height: number, title: string, hasCost: boolean, hasIcon: boolean) {
+  const showTicker = width >= TICKER_MIN && height >= TICKER_MIN;
+  const textW = Math.max(width - PAD_X, 1);
+  const titleLines = Math.min(2, Math.ceil((title.length * TITLE_CHAR) / textW));
+  let used = PAD_Y + titleLines * TITLE_LINE + TICKER_LINE;
+  const showFull = width >= FULL_MIN_W && height >= used;
+  const showCost = showFull && hasCost && height >= used + COST_LINE;
+  if (showCost) used += COST_LINE;
+  const showIcon = showFull && hasIcon && width >= 96 && height >= used + ICON_LINE;
+  return { showFull, showTicker, showCost, showIcon };
+}
 
 function TileInner({
   id,
@@ -91,10 +115,13 @@ function TileInner({
   onFocusChange,
 }: TileProps) {
   const reduced = useReducedMotion();
-  const showFull = width >= FULL_MIN_W && height >= FULL_MIN_H;
-  const showTicker = width >= TICKER_MIN && height >= TICKER_MIN;
-  const showCost = showFull && cost != null;
-  const showIcon = width >= 96 && height >= 72 && Icon != null;
+  const { showFull, showTicker, showCost, showIcon } = labelBudget(
+    width,
+    height,
+    title,
+    cost != null,
+    Icon != null,
+  );
   const label = `${title}${cost ? `, ${cost} per year` : ""}, ${daysLabel(daysLeft)}`;
 
   return (
