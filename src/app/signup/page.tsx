@@ -18,25 +18,36 @@ export default async function SignupPage() {
   if (user) redirect("/app");
 
   return (
-    <main className="relative flex min-h-dvh items-center justify-center bg-bg px-6 py-16">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 flex h-[3px]"
-      >
-        <div className="flex-1" style={{ backgroundColor: "var(--urgency-calm)" }} />
-        <div className="flex-1" style={{ backgroundColor: "var(--urgency-soon)" }} />
-        <div className="flex-1" style={{ backgroundColor: "var(--urgency-urgent)" }} />
-        <div className="flex-1" style={{ backgroundColor: "var(--urgency-critical)" }} />
-        <div className="flex-1" style={{ backgroundColor: "var(--urgency-overdue)" }} />
-      </div>
-
-      <div className="flex w-full max-w-sm flex-col items-center gap-8">
-        <div className="flex w-full flex-col items-center gap-3 text-center">
-          <Link href="/" className="flex items-baseline gap-2.5">
+    <main
+      id="main-content"
+      className="flex min-h-dvh flex-col bg-bg text-ink"
+    >
+      <header className="border-b border-rule">
+        <div className="mx-auto flex h-14 max-w-sm items-center justify-between px-6">
+          <Link
+            href="/"
+            className="flex items-baseline gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
             <span aria-hidden className="inline-block size-3 bg-ink" />
-            <span className="font-display text-xl font-semibold tracking-[-0.01em]">SirenDeck</span>
+            <span className="font-display text-lg font-semibold tracking-[-0.01em]">
+              SirenDeck
+            </span>
           </Link>
-          <h1 className="font-display text-3xl font-semibold tracking-[-0.01em]">Open your ledger</h1>
+          <Link
+            href="/login"
+            className="ledger-cap text-[10px] text-ink-muted transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            Sign in
+          </Link>
+        </div>
+      </header>
+
+      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-6 py-12">
+        <div className="flex flex-col gap-2">
+          <p className="ledger-cap text-[10px] text-ink-muted">Create account</p>
+          <h1 className="font-display text-3xl font-semibold tracking-[-0.01em]">
+            Open your ledger
+          </h1>
           <p className="text-sm text-ink-muted">
             Free during early access. No card required.
           </p>
@@ -44,13 +55,19 @@ export default async function SignupPage() {
 
         <AuthForm mode="signup" />
 
-        <p className="text-sm text-ink-muted">
+        <p className="text-center text-sm text-ink-muted">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium underline decoration-rule-strong underline-offset-4 hover:decoration-ink">
+          <Link
+            href="/login"
+            className="font-medium underline decoration-rule-strong underline-offset-4 hover:decoration-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
             Sign in
           </Link>
         </p>
-        <Link href="/" className="text-xs text-ink-muted transition-colors hover:text-ink">
+        <Link
+          href="/"
+          className="mx-auto text-xs text-ink-muted transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
           Back to home
         </Link>
       </div>
