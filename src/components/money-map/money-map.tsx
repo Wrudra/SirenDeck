@@ -273,7 +273,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                         setHoveredId(null);
                         setZoomId(group.id);
                       }}
-                      className="ledger-cap absolute z-10 flex h-[22px] cursor-zoom-in items-center justify-between gap-2 bg-black px-2 text-left text-white hover:text-white focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/70"
+                      className="ledger-cap group absolute z-10 flex h-[22px] cursor-zoom-in items-center justify-between gap-2 bg-black px-2 text-left text-white transition-colors hover:bg-[#1a1a1a] hover:text-white focus-visible:bg-[#1a1a1a] focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/70"
                       style={{ left: group.x, top: group.y, width: group.width }}
                       title={
                         isOther
@@ -288,9 +288,14 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                           : `Zoom into ${name}${yearly}`
                       }
                     >
-                      <span className="min-w-0 truncate text-sm font-medium normal-case tracking-normal">
+                      <span className="min-w-0 truncate text-sm font-medium normal-case tracking-normal decoration-white/55 underline-offset-[3px] group-hover:underline group-focus-visible:underline">
                         {name}
-                        <span className="ml-1 text-white/60">›</span>
+                        <span
+                          aria-hidden
+                          className="ml-1 text-white/60 transition-colors group-hover:text-white group-focus-visible:text-white"
+                        >
+                          ›
+                        </span>
                       </span>
                       {shownTotal && (
                         <span
