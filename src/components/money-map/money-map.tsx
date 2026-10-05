@@ -124,12 +124,6 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
 
   const otherMembers = useMemo(() => overview?.otherMembers ?? [], [overview]);
 
-  /** The overview section an item's category is drawn in. */
-  const sectionIdFor = useCallback(
-    (categoryId: string) => (otherMembers.includes(categoryId) ? OTHER_GROUP_ID : categoryId),
-    [otherMembers],
-  );
-
   const otherLabel = useMemo(
     () => otherMembers.map((id) => categoryById.get(id)?.name ?? "Uncategorized").join(", "),
     [otherMembers, categoryById],
@@ -301,20 +295,6 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
               </AnimatePresence>
             </>
           )}
-
-          {hoveredId && !zoomId && groupRects && (() => {
-            const item = itemById.get(hoveredId);
-            const sectionId = item && sectionIdFor(item.categoryId);
-            const g = sectionId && groupRects.find((group) => group.id === sectionId);
-            if (!g) return null;
-            return (
-              <div
-                aria-hidden
-                className="pointer-events-none absolute z-30 border-2 border-black"
-                style={{ left: g.x, top: g.y, width: g.width, height: g.height }}
-              />
-            );
-          })()}
 
           <MapTooltip
             item={activeItem}
