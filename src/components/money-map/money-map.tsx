@@ -295,12 +295,12 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
               </AnimatePresence>
             </>
           )}
-
-          <MapTooltip
-            item={activeItem}
-            category={activeItem ? categoryById.get(activeItem.categoryId) : undefined}
-          />
         </div>
+
+        <MapTooltip
+          item={activeItem}
+          category={activeItem ? categoryById.get(activeItem.categoryId) : undefined}
+        />
         </>
         )}
 
