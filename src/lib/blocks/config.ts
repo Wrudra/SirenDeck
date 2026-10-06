@@ -1,8 +1,9 @@
 /**
  * Public Blocks runtime config for the browser SDK.
- * Values prefer NEXT_PUBLIC_* env; fall back to known public project defaults
- * so a blank Docker build-arg / missing inline cannot leave login "not configured".
- * Never put a client secret here.
+ * Values come from NEXT_PUBLIC_* env (local `.env.local` or Blocks Release
+ * build-args / runtime secrets). Do not hardcode project key, client id,
+ * or tenant URLs here — those belong in env / Release secrets, not source.
+ * Never put a client secret here (this app uses a public PKCE client).
  */
 
 export type BlocksRuntimeConfig = {
@@ -14,28 +15,19 @@ export type BlocksRuntimeConfig = {
   xBlocksKey: string;
 };
 
-/** Public, non-secret defaults for SirenDeck Blocks `dev` (same as .env.example). */
-const PUBLIC_DEFAULTS = {
-  apiUrl: "https://blocksapi.slsblx.com",
-  appDomain: "https://dblcyi-eocee.slsblx.com",
-  oidcClientId: "e6307866-2c00-42c3-b94d-d63c6581c9ed",
-  oidcScope: "openid profile",
-  oidcUrl: "https://iam.seliseblocks.com/D158bd535e4d44ea58e5c53146704e2ab",
-  xBlocksKey: "D158bd535e4d44ea58e5c53146704e2ab",
-} as const;
-
 function read(name: string): string {
   return (process.env[name] ?? "").trim();
 }
 
 export function getBlocksConfig(): BlocksRuntimeConfig {
   return {
-    apiUrl: read("NEXT_PUBLIC_BLOCKS_API_URL") || PUBLIC_DEFAULTS.apiUrl,
-    appDomain: read("NEXT_PUBLIC_BLOCKS_APP_DOMAIN") || PUBLIC_DEFAULTS.appDomain,
-    oidcClientId: read("NEXT_PUBLIC_BLOCKS_OIDC_CLIENT_ID") || PUBLIC_DEFAULTS.oidcClientId,
-    oidcScope: read("NEXT_PUBLIC_BLOCKS_OIDC_SCOPE") || PUBLIC_DEFAULTS.oidcScope,
-    oidcUrl: read("NEXT_PUBLIC_BLOCKS_OIDC_URL") || PUBLIC_DEFAULTS.oidcUrl,
-    xBlocksKey: read("NEXT_PUBLIC_BLOCKS_KEY") || PUBLIC_DEFAULTS.xBlocksKey,
+    apiUrl: read("NEXT_PUBLIC_BLOCKS_API_URL"),
+    appDomain: read("NEXT_PUBLIC_BLOCKS_APP_DOMAIN"),
+    oidcClientId: read("NEXT_PUBLIC_BLOCKS_OIDC_CLIENT_ID"),
+    // SDK default scope when unset; not project-specific.
+    oidcScope: read("NEXT_PUBLIC_BLOCKS_OIDC_SCOPE") || "openid profile",
+    oidcUrl: read("NEXT_PUBLIC_BLOCKS_OIDC_URL"),
+    xBlocksKey: read("NEXT_PUBLIC_BLOCKS_KEY"),
   };
 }
 

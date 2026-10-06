@@ -83,7 +83,7 @@ main  ── production (Vercel + Supabase) — DO NOT TOUCH for migration
 | Branch | Role |
 |---|---|
 | `main` | Live users, live Supabase project, Vercel deploy. Untouched by migration commits. |
-| `dev` | Blocks project `D158…`, Blocks Release domain, dual-provider flags, Docker/kaniko path. |
+| `dev` | Blocks project `<tenant-key>…`, Blocks Release domain, dual-provider flags, Docker/kaniko path. |
 
 Practical consequences:
 
@@ -144,7 +144,7 @@ Unresolved on purpose: rewriting “Stack (fixed)” on day one would lie about 
 | Field | Value |
 |---|---|
 | Name | SirenDeck |
-| Tenant / key | `D158bd535e4d44ea58e5c53146704e2ab` |
+| Tenant / key | `<tenant-key>` |
 | Environment | `dev` |
 | App domain | `https://dblcyi-eocee.slsblx.com` (PlatformSubdomain, verified) |
 | Cookie domain | `slsblx.com` |
@@ -153,12 +153,12 @@ Unresolved on purpose: rewriting “Stack (fixed)” on day one would lie about 
 
 At first brief capture the project had **no** OIDC clients, `isOidcEnabled: false`, and **zero** data schemas — greenfield modelling on Blocks, with Supabase data migration deferred.
 
-The account can see many other projects (Demo UILM, Ripple OS, PathaoPoth, shared HRM tenants, …). Hard rule: always `blocks use D158…` before mutating anything; never touch other tenants.
+The account can see many other projects (Demo UILM, Ripple OS, PathaoPoth, shared HRM tenants, …). Hard rule: always `blocks use <tenant-key>` before mutating anything; never touch other tenants.
 
 ### CLI workflow that actually worked
 
 ```bash
-blocks use D158bd535e4d44ea58e5c53146704e2ab
+blocks use <tenant-key>
 blocks auth refresh --project          # project RT was recoverable; no device-code this run
 blocks init                            # blocks.json + blocks/data/rules.json
 blocks data validate --json
@@ -198,7 +198,7 @@ blocks release setup|deploy ...
 Dry-run first, then `--yes` after approval:
 
 ```bash
-blocks use D158bd535e4d44ea58e5c53146704e2ab
+blocks use <tenant-key>
 
 blocks auth oidc-clients save \
   --client-display-name "SirenDeck" \
@@ -220,15 +220,15 @@ blocks auth config save \
 | Check | Result |
 |---|---|
 | `isOidcEnabled` | `true` |
-| Public client id | `e6307866-2c00-42c3-b94d-d63c6581c9ed` |
+| Public client id | `<oidc-client-id>` |
 | `clientType` | `public` |
 | `tokenEndpointAuthMethod` | `none` (correct for browser PKCE) |
 | `requirePkce` | `true` |
 | `isAutoRedirect` | `true` |
 | Redirect URIs | platform `/login/callback` + `http://localhost:3000/login/callback` |
-| Linked IdP | `b11b7826-3596-4480-9358-5d9cb74f30c9`, provider `sirendeck` / `blocks-oidc`, active |
-| Authorize URL | non-null on IAM (`…/api/oidc/authorize?tenant_id=D158…`) |
-| Discovery | `https://iam.seliseblocks.com/D158…` — `.well-known/openid-configuration` HTTP 200 |
+| Linked IdP | `<idp-id>`, provider `sirendeck` / `blocks-oidc`, active |
+| Authorize URL | non-null on IAM (`…/api/oidc/authorize?tenant_id=<tenant-key>…`) |
+| Discovery | `https://iam.seliseblocks.com/<tenant-key>…` — `.well-known/openid-configuration` HTTP 200 |
 | Social IdP | not configured (by design) |
 
 Backend expanded stored scope to `openid profile offline_access`.
@@ -416,9 +416,11 @@ NEXT_PUBLIC_DATA_PROVIDER=blocks|supabase
 
 On Blocks Release images both default to `blocks`. On local dual-run you can flip either independently. Home page soft-guards missing Supabase so a Blocks-only deploy does not crash the marketing route.
 
-### Public config fallbacks
+### Public config (env only)
 
-Even after baking env into the Docker image, hydration could still show “Blocks login is not configured” when the client bundle lacked inlined `NEXT_PUBLIC_*` while SSR saw runtime values (React #418 mismatch). `config.ts` therefore falls back to **known public, non-secret** project defaults (same values as `.env.example`) so OIDC client id / API URL / key resolve in the browser without relying solely on Next inlining.
+`config.ts` reads `NEXT_PUBLIC_BLOCKS_*` from the environment only — no hardcoded project key, client id, or tenant URLs in source. Local: copy `.env.example` → `.env.local` and fill values from the portal/CLI. Release: `blocks release secrets sync` injects the same names as build-args so Next can inline them into the client bundle.
+
+If build-args are empty while runtime secrets are set, SSR and the client disagree (React #418 / “not configured”). Fix the Release secret set; do not re-bake IDs into the Dockerfile.
 
 Never put a client secret in that file. There isn’t one for this public PKCE client.
 
@@ -428,7 +430,7 @@ Never put a client secret in that file. There isn’t one for this public PKCE c
 
 ### Repo link and first setup
 
-Linked `Wrudra/SirenDeck` @ branch `dev` to `https://dblcyi-eocee.slsblx.com`. First production-shaped deploy used `blocks release setup` (not only `deploy`) with Azure West Europe `1 GiB` machine config, public `NEXT_PUBLIC_*` secrets sync, and `--register-callback`. No passwords in Release secrets.
+Linked `Wrudra/SirenDeck` @ branch `dev` to `https://dblcyi-eocee.slsblx.com`. First production-shaped deploy used `blocks release setup` (not only `deploy`) with Azure West Europe `1 GiB` machine config, public `NEXT_PUBLIC_*` secrets sync, and `--register-callback`. No passwords in Release secrets. Later security pass: removed project key / OIDC client id / API URL bake-ins from the Dockerfile; Release secrets remain the injection path.
 
 ### Dockerfile evolution (failed builds → working image)
 
@@ -445,19 +447,22 @@ Early Dockerfile attempts wrestled with:
 | Listen port | Deploy “succeeded” but domain returned nginx **502** — container was on 3000, platform expected **8080**. Set `PORT=8080`, `HOSTNAME=0.0.0.0`, `EXPOSE 8080`. |
 | Standalone layout | CMD probes `server.js` or `sirendeck/server.js` under `.next/standalone`. |
 | Scope ENV quoting | `ENV … SCOPE="openid profile"` — unquoted multi-word scope breaks the image env. |
-| Empty pipeline `--build-arg` | Empty build-args **overrode** Dockerfile `ARG` defaults and wiped the client OIDC bundle. Bake public `NEXT_PUBLIC_*` as plain **`ENV` (no ARG)** so the pipeline cannot blank them. |
-| Assert in build | Echo/assert client id around `pnpm run build`; optionally confirm it appears under `.next/static`. |
+| Empty pipeline `--build-arg` | Empty build-args **override** Dockerfile `ARG` defaults and wipe the client OIDC bundle. Do **not** bake project key / client id into the Dockerfile. Keep Release secrets non-empty and fail the builder if required `NEXT_PUBLIC_*` are blank. |
+| Assert in build | Preflight `test -n` on required public env before `pnpm run build`; do not echo client ids into build logs. |
 
 ### Current shape (conceptual)
 
 ```dockerfile
 FROM node:22-alpine AS builder
 # corepack pnpm, frozen lockfile, allow-build for native modules
-ENV NEXT_PUBLIC_BLOCKS_*=… \
-    NEXT_PUBLIC_BLOCKS_OIDC_SCOPE="openid profile" \
+# Public NEXT_PUBLIC_* arrive as ARG/ENV from Blocks Release build-args
+# (secrets sync). No project key / client id / URLs are committed here.
+ARG NEXT_PUBLIC_BLOCKS_KEY=
+# …other NEXT_PUBLIC_BLOCKS_* ARGs with empty defaults…
+ENV NEXT_PUBLIC_BLOCKS_KEY=$NEXT_PUBLIC_BLOCKS_KEY \
     NEXT_PUBLIC_AUTH_PROVIDER=blocks \
     NEXT_PUBLIC_DATA_PROVIDER=blocks
-RUN pnpm run build
+RUN test -n "$NEXT_PUBLIC_BLOCKS_OIDC_CLIENT_ID" && pnpm run build
 
 FROM node:22-alpine AS runner
 ENV PORT=8080 HOSTNAME=0.0.0.0
@@ -470,8 +475,8 @@ ENV PORT=8080 HOSTNAME=0.0.0.0
 
 1. No Dockerfile → kaniko path error.
 2. Dockerfile + pnpm → build green; domain 502 → port 8080.
-3. Client “not configured” → ENV bake (not ARG) + config fallbacks.
-4. Quoted scope + drop brittle client-id grep that broke otherwise-good builds.
+3. Client “not configured” → Release secrets as build-args (non-empty) + fail-fast preflight; no Dockerfile literals.
+4. Drop brittle client-id grep that broke otherwise-good builds; quote multi-word scope if set via ENV.
 5. OIDC login smoke test green on the platform domain.
 
 ### What kaniko taught us about Next.js public env
@@ -482,9 +487,9 @@ Next.js inlines `NEXT_PUBLIC_*` at **build** time into the client JS. Blocks Rel
 |---|---|
 | Build with empty `--build-arg NEXT_PUBLIC_BLOCKS_OIDC_CLIENT_ID=` | Client bundle gets `""`. Login CTA thinks Blocks is unconfigured. |
 | Runtime secret present, build blank | SSR (Node) may see the secret; client still has `""` → hydration mismatch (React #418) and a confusing UI. |
-| Build with plain `ENV` baked in Dockerfile | Client bundle contains the public client id. Runtime can still override server-side reads if needed. |
+| Build with Release secrets as non-empty build-args | Client bundle contains the public client id from env — not from committed Dockerfile literals. |
 
-We also tried a strict `grep` of the client id inside `.next/static` as a build gate. That caught real failures once, then failed a good build when chunk layout changed. The durable checks are: (1) do not use `ARG` defaults for values the pipeline may pass empty, (2) keep public fallbacks in `config.ts`, (3) smoke-test `/login` on the platform domain after each Release.
+We also tried a strict `grep` of the client id inside `.next/static` as a build gate. That caught real failures once, then failed a good build when chunk layout changed. The durable checks are: (1) keep Release secrets non-empty (empty `--build-arg` blanks the bundle), (2) fail the Docker build if required `NEXT_PUBLIC_*` are blank, (3) smoke-test `/login` on the platform domain after each Release — do not commit project key / client id into Dockerfile or `config.ts`.
 
 ### pnpm + Alpine specifics
 
@@ -618,15 +623,15 @@ Supabase clients under `src/lib/supabase/*`, migrations under `supabase/`, and `
 | 2026-10-06 | Agents: cursor, codex, gemini, copilot. Skill-fronts empty. Instruction-front: `GEMINI.md`. Reporting: opt-out. |
 | 2026-10-06 | First Blocks skills install. Append Blocks block to existing `AGENTS.md`; leave SURFACE stack conflict unresolved. |
 | 2026-10-06 | Branch strategy: all migration on `dev` / `origin/dev`; `main` untouched. |
-| 2026-10-06 | Project: SirenDeck `D158bd535e4d44ea58e5c53146704e2ab` (dev). Domain `https://dblcyi-eocee.slsblx.com`. |
+| 2026-10-06 | Project: SirenDeck `<tenant-key>` (dev). Domain `https://dblcyi-eocee.slsblx.com`. |
 | 2026-10-06 | Auth probe: project RT recoverable → `blocks auth refresh --project`. |
 | 2026-10-06 | **Data:** greenfield on Blocks. **Auth:** email+password only (no social). **App:** wire existing Next.js. |
-| 2026-10-06 | Phase 1: OIDC enabled; public PKCE client `e6307866-…`; IdP linked with non-null authorize URL. |
+| 2026-10-06 | Phase 1: OIDC enabled; public PKCE client created; IdP linked with non-null authorize URL. |
 | 2026-10-06 | Redirect URIs: platform + `localhost:3000` `/login/callback`. Cookie caveat documented. |
 | 2026-10-06 | Phase 2: schemas Category/Item/Reminder/Attachment; User-level security; Next OIDC callback wired. |
 | 2026-10-06 | Invited first clouduser; CreatedBy ownership policies on all four schemas. |
 | 2026-10-06 | Money Map dual-path + category seed; Release linked to `dev`. |
-| 2026-10-06 | Dockerfile/kaniko iteration: pnpm, port 8080, ENV bake, scope quoting, config fallbacks. |
+| 2026-10-06 | Dockerfile/kaniko iteration: pnpm, port 8080, Release build-args (no baked IDs), scope quoting. |
 | 2026-10-06 | OIDC smoke test green; GraphQL unwrap + seed guard + category name dedupe. |
 | _(open)_ | When to rewrite AGENTS.md “Stack (fixed)” — proposed Phase 5. |
 | _(open)_ | Supabase data migration strategy / cutover date / DNS. |
@@ -674,10 +679,10 @@ Supabase clients under `src/lib/supabase/*`, migrations under `supabase/`, and `
 5. **RLS intuition does not port.** Schema User access ≠ row ownership. Custom CreatedBy policies need a real `ruleGroup` shape; inventing SQL-shaped rules fails closed or open in surprising ways. API errors were more useful than the skill docs here.
 6. **Field-level vs row-level policies are different types.** Row policies reject `fieldNames`. Blank custom fields after a rules deploy may be cache lag — count raw rows before re-seeding.
 7. **Believe the SDK’s actual return shape.** Assuming an unwrapped `{ items }` when the client returns a GraphQL envelope silently creates infinite seed loops.
-8. **Kaniko is literal.** No Dockerfile means an immediate fail. Wrong listen port means a green deploy and a 502. Empty `--build-arg` values can wipe `ARG` defaults — prefer plain `ENV` for public build-time Next config.
+8. **Kaniko is literal.** No Dockerfile means an immediate fail. Wrong listen port means a green deploy and a 502. Empty `--build-arg` values wipe `ARG` defaults — inject public Next config via Release secrets (never bake project key / client id into the Dockerfile) and fail the build if they are blank.
 9. **pnpm in Docker must match the lockfile.** Fighting npm in CI when the repo is pnpm-only wastes builds; allow native builds explicitly.
 10. **Quote multi-word ENV values.** `openid profile` without quotes is two tokens to the image.
-11. **Public fallbacks are a pragmatic client-bundle seatbelt.** They are not a substitute for correct Release env, but they prevent “not configured” hydration when SSR and client disagree.
+11. **Do not hardcode project IDs as “public fallbacks” in source.** Prefer correct Release / `.env.local` injection. Hardcoded client ids in `config.ts` or Dockerfile recreate the same exposure the security pass removes.
 12. **Dual-provider flags beat a big-bang cut.** `AUTH_PROVIDER` / `DATA_PROVIDER` let us ship OIDC and Money Map reads without deleting Supabase codepaths on day one.
 13. **SURFACE conflicts in AGENTS.md should stay visible.** Overwriting “Stack (fixed)” early would paper over the fact that `main` still runs Supabase.
 14. **Never commit smoke credentials or check screenshots.** Env-only passwords; `.sirendeck-check/` and `.playwright-mcp/` stay gitignored.
