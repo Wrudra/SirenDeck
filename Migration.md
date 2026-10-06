@@ -167,19 +167,15 @@ Mark **UNKNOWN** where we still need user decisions or deeper skill study.
 
 Skills installed, `Migration.md` started, project selected, brief captured.
 
-### Phase 1 — Auth / identity on Blocks
+### Phase 1 — Auth / identity on Blocks ✅ (platform config)
 
-1. Enable OIDC on the SirenDeck project (`isOidcEnabled` currently false) —
-   via `blocks-iam-sso-oidc-configuration`.
-2. Register a **public** OIDC client with redirect
-   `https://dblcyi-eocee.slsblx.com/login/callback` **and** the local HTTPS
-   origin once certs exist (`blocks-frontend-local-https`).
-3. Create first end user (`blocks-bootstrap` / `blocks-iam-users` first-user flow).
-4. Decide identity model: keep email+password via Blocks hosted login vs add
-   social IdP later (v1 on Supabase dropped Google — likely stay simple).
-5. **UNKNOWN:** How Blocks user ids map from Supabase `auth.users` uuids for
-   data migration; whether password hashes can transfer (almost certainly
-   **not** — expect re-invite / reset).
+1. ~~Enable OIDC~~ **done** (`isOidcEnabled: true`).
+2. ~~Register public OIDC client~~ **done** (`e6307866-…`) with platform +
+   `localhost:3000` `/login/callback`. Local **HTTPS** origin still a gap.
+3. Create first end user (`blocks-bootstrap` / `blocks-iam-users` first-user flow) — **pending**.
+4. Identity model: **email+password only** (locked); no social IdP.
+5. Data migration / user-id mapping: **deferred** (greenfield first).
+6. App wiring (`@seliseblocks/client`, callback route): **pending** (implementation skill).
 
 ### Phase 2 — Data schema on Blocks
 
@@ -257,26 +253,108 @@ Skills installed, `Migration.md` started, project selected, brief captured.
 | 2026-10-06 | Project selected: SirenDeck `D158bd535e4d44ea58e5c53146704e2ab` (dev). Domain `https://dblcyi-eocee.slsblx.com`. |
 | 2026-10-06 | Auth probe: project RT recoverable → `blocks auth refresh --project`; no interactive login needed. |
 | 2026-10-06 | Brief: no OIDC clients; `isOidcEnabled=false`; zero data schemas; languages en-US / de-DE / bn-BD. |
+| 2026-10-06 | **Data:** greenfield on Blocks; Supabase migrate later. **Auth:** email+password only (no social). **App:** wire existing Next.js (no new scaffold). |
+| 2026-10-06 | Phase 1: OIDC enabled; public PKCE client `e6307866-2c00-42c3-b94d-d63c6581c9ed`; IdP `b11b7826-3596-4480-9358-5d9cb74f30c9` with non-null authorize URL. |
+| 2026-10-06 | Redirect URIs: platform domain + `http://localhost:3000` `/login/callback`. Cookie caveat documented. |
 | _(open)_ | When to rewrite AGENTS.md "Stack (fixed)" — proposed Phase 5. |
-| _(open)_ | Data migration strategy for existing Supabase users/rows. |
+| _(done-deferred)_ | Data migration strategy — deferred; greenfield first. |
 | _(open)_ | Whether GitHub SirenDeck is linked in Blocks Release. |
 | _(open)_ | Cutover date / DNS / whether to keep a read-only Supabase archive. |
+| _(open)_ | First Blocks end-user + real login smoke test. |
+| _(open)_ | Local HTTPS for Next on project domain (cookie-capable). |
 
 ---
 
 ## 8. Immediate next actions (suggested)
 
-1. Phase 1: enable OIDC + register public client for `dblcyi-eocee.slsblx.com`
-   (and later local HTTPS origin).
-2. `blocks init` (if needed) + draft Data Gateway schemas from the four tables.
-3. Confirm Release repo linkage: `blocks release repos list --json`.
-4. User questions (need answers before deep app wiring):
-   - Migrate existing Supabase data, or greenfield empty on Blocks?
-   - Keep email+password only, or add social IdP?
-   - Preferred first deploy path: scaffold new Blocks web app vs wire this
-     Next.js repo as "existing app"?
+1. ~~Phase 1: enable OIDC + register public client~~ **DONE** (see §9).
+2. **Phase 2:** `blocks init` (if needed) + draft Data Gateway schemas for
+   `categories`, `items`, `reminders`, `attachments` (greenfield; ownership rules
+   replacing RLS). Skill: `blocks-data-gateway-configuration`.
+3. Parallel/soon: create first end user; wire Next.js auth via
+   `blocks-iam-sso-oidc-implementation` + bootstrap `existing-app` flow
+   (`@seliseblocks/client`, `/login/callback`, env from `.env.example`).
+4. Confirm Release repo linkage: `blocks release repos list --json`.
+5. Plan local HTTPS on `dblcyi-eocee.slsblx.com` for cookie-capable login tests
+   (Next adaptation of `blocks-frontend-local-https`).
 
 ---
+
+
+---
+
+## 9. Phase 1 status — OIDC enable + public client (2026-10-06)
+
+**Status: DONE** on project `D158bd535e4d44ea58e5c53146704e2ab`.
+
+### Decisions locked this turn (user: “do what you think best”)
+
+1. **Data:** greenfield empty on Blocks; Supabase data migrate later (or never until proven).
+2. **Auth:** email+password only via Blocks hosted login — **no social IdP**.
+3. **App:** wire this existing Next.js repo (do **not** scaffold a separate Blocks starter).
+
+### Commands run (skill path: `blocks-iam-sso-oidc-configuration` + bootstrap `flows/oidc-client.md`)
+
+Dry-run then `--yes` (user approved Phase 1):
+
+```bash
+blocks use D158bd535e4d44ea58e5c53146704e2ab
+
+blocks auth oidc-clients save \
+  --client-display-name "SirenDeck" \
+  --client-type public \
+  --redirect-uris "https://dblcyi-eocee.slsblx.com/login/callback,http://localhost:3000/login/callback" \
+  --scope "openid profile" \
+  --require-pkce --active --auto-redirect \
+  --register-as-identity-provider \
+  --yes --json
+
+blocks auth config save \
+  --oidc-enabled \
+  --account-action-base-url "https://dblcyi-eocee.slsblx.com" \
+  --yes --json
+```
+
+### Outcomes
+
+| Check | Result |
+|---|---|
+| `isOidcEnabled` | **true** |
+| Public OIDC client | **yes** — `clientId` / `itemId` = `e6307866-2c00-42c3-b94d-d63c6581c9ed` |
+| `clientType` | `public` |
+| `tokenEndpointAuthMethod` | `none` (correct for PKCE browser client) |
+| `requirePkce` | `true` |
+| `isAutoRedirect` | `true` |
+| Redirect URIs | `https://dblcyi-eocee.slsblx.com/login/callback`, `http://localhost:3000/login/callback` |
+| Linked IdP | `itemId` `b11b7826-3596-4480-9358-5d9cb74f30c9`, provider `sirendeck` / `blocks-oidc`, **active** |
+| IdP `authorizationUrl` | **non-null** — `https://iam.seliseblocks.com/api/oidc/authorize?tenant_id=D158…` |
+| Discovery / issuer | `https://iam.seliseblocks.com/D158bd535e4d44ea58e5c53146704e2ab` (HTTP 200 on `.well-known/openid-configuration`) |
+| Social IdP | **not** configured (by design) |
+
+`accountActionBaseUrl` after save reads as `https://iam.seliseblocks.com` (activation path `oidc/activate/`). Dry-run request carried the app domain we passed; post-save get shows the IAM host — treat IAM host as the live value for activation links unless login/activation proves otherwise.
+
+Backend also expanded scope to `openid profile offline_access` on the stored client/IdP.
+
+### Env template
+
+`.env.example` now documents public Blocks vars for the Next.js app (no secrets):
+
+- `NEXT_PUBLIC_BLOCKS_KEY`
+- `NEXT_PUBLIC_BLOCKS_API_URL=https://blocksapi.slsblx.com` (same registrable domain as `*.slsblx.com` — required for session cookies)
+- `NEXT_PUBLIC_BLOCKS_OIDC_URL` (issuer)
+- `NEXT_PUBLIC_BLOCKS_OIDC_CLIENT_ID` (public client id above)
+- `NEXT_PUBLIC_BLOCKS_OIDC_SCOPE`
+
+Supabase vars remain for dual-run on `main` / until cutover.
+
+### Remaining gaps (not Phase 1 blockers)
+
+1. **App wiring** — install `@seliseblocks/client`, add `/login/callback`, AuthProvider, replace Supabase auth gradually (`blocks-iam-sso-oidc-implementation` + `existing-app` flow). Not done this turn.
+2. **Local login cookies** — `http://localhost:3000` is registered for authorize redirects, but Secure session cookies will **not** stick on plain HTTP localhost. Real local login needs HTTPS on the project domain (adapt `blocks-frontend-local-https` ideas to Next, or test on `https://dblcyi-eocee.slsblx.com` once deployed).
+3. **First end user** — create via `blocks-iam-users` / bootstrap first-user flow before a real login test.
+4. **Phase 2** — model Data Gateway schemas for `categories` / `items` / `reminders` / `attachments` (greenfield).
+5. **AGENTS.md stack conflict** — still unresolved until Phase 5 rewrite.
+
 
 ## Appendix — bootstrap provenance (stamp excerpt)
 
