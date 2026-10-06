@@ -630,3 +630,22 @@ Even with Dockerfile ENV bake, hydrated login still showed “not configured”
 `src/lib/blocks/config.ts` so OIDC client id / API URL / key resolve in the
 browser without relying on Next inlining.
 
+
+### Release note (live: OIDC login works; Data Gateway unwrap fix)
+
+Build `89e3108a-a6de-406f-a521-db8e95c67d80` (commit `e490a29`) deployed to
+`https://dblcyi-eocee.slsblx.com`. Hosted OIDC smoke test (HTTPS domain, env-only
+credentials) succeeded: `/login` → Continue with Blocks → IAM → `/login/callback` → `/app`
+with the signed-in user's email in the header.
+
+Found on `/app`: the SDK's `collection().list()/create()` return the **raw GraphQL body**
+(`{ data: { getCategorys: { items } } }`), but `data.ts` read `page.items` / `res.itemId`.
+Result: the category list always looked empty, so `getOrSeedCategories()` re-inserted the six
+defaults on every load (duplicates in `Category`). Fix: `gqlPayload`/`pageItems`/`mutationItemId`
+helpers unwrap `data.<field>`, surface GraphQL `errors`, and `listCategories()` dedupes by name.
+Existing duplicate Category rows are left in place (hidden by the dedupe); clean them up
+manually if wanted.
+
+Rules: added field-level (`policyType: 1`) read security at `User` level for custom fields of all
+four schemas in `blocks/data/rules.json`. Row-level `CreatedBy` read/edit/delete policies are
+unchanged, so rows stay owner-only. (Row-level policies reject `fieldNames`.)

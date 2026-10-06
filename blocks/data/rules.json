@@ -441,6 +441,64 @@
       "operation": 3,
       "policyType": 0,
       "fieldNames": []
+    },
+    {
+      "schemaId": "d27a6302-5463-48b8-94b0-1695687d7121",
+      "schemaName": "Attachment",
+      "accessLevel": 1,
+      "operation": 0,
+      "policyType": 1,
+      "fieldNames": [
+        "itemId",
+        "storagePath",
+        "filename",
+        "mimeType",
+        "sizeBytes"
+      ]
+    },
+    {
+      "schemaId": "aceebc8f-a71d-4946-b725-49cb88ca38b4",
+      "schemaName": "Category",
+      "accessLevel": 1,
+      "operation": 0,
+      "policyType": 1,
+      "fieldNames": [
+        "name",
+        "color",
+        "icon"
+      ]
+    },
+    {
+      "schemaId": "a1b87a6c-7349-4e48-93d1-24d29854feaa",
+      "schemaName": "Item",
+      "accessLevel": 1,
+      "operation": 0,
+      "policyType": 1,
+      "fieldNames": [
+        "categoryId",
+        "title",
+        "notes",
+        "dueDate",
+        "status",
+        "recurrence",
+        "autoRenews",
+        "amount",
+        "currency",
+        "snoozedUntil",
+        "completedAt"
+      ]
+    },
+    {
+      "schemaId": "ec581973-f247-445d-b0cc-32533141b108",
+      "schemaName": "Reminder",
+      "accessLevel": 1,
+      "operation": 0,
+      "policyType": 1,
+      "fieldNames": [
+        "itemId",
+        "daysBefore",
+        "sentAt"
+      ]
     }
   ]
 }

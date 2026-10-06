@@ -80,6 +80,34 @@ const ITEM_FIELDS = [
   "completedAt",
 ] as const;
 
+/**
+ * The SDK returns the raw GraphQL body (`{ data: { getXs: { items } }, errors }`).
+ * Unwrap it here so callers see the page/mutation payload, and surface GraphQL errors.
+ */
+function gqlPayload(res: unknown, field: string): BlocksRecord {
+  const body = (res ?? {}) as { data?: Record<string, unknown>; errors?: { message?: string }[] };
+  if (Array.isArray(body.errors) && body.errors.length) {
+    throw new Error(body.errors.map((e) => e?.message ?? "GraphQL error").join("; "));
+  }
+  const payload = body.data?.[field] ?? (res as Record<string, unknown> | undefined)?.[field];
+  if (payload && typeof payload === "object") return payload as BlocksRecord;
+  // Older/unwrapped shape: the page itself.
+  return (res ?? {}) as BlocksRecord;
+}
+
+function pageItems(res: unknown, field: string): BlocksRecord[] {
+  const items = gqlPayload(res, field).items;
+  return Array.isArray(items) ? (items as BlocksRecord[]) : [];
+}
+
+function mutationItemId(res: unknown, field: string): string {
+  const payload = gqlPayload(res, field);
+  if (payload.acknowledged === false) {
+    throw new Error(str(payload.message, `${field} was not acknowledged`));
+  }
+  return str(payload.itemId);
+}
+
 export function categoriesCollection() {
   return getBlocksClient().data.collection<BlocksRecord>("Category", {
     fields: [...CATEGORY_FIELDS],
@@ -93,15 +121,22 @@ export function itemsCollection() {
 }
 
 export async function listCategories(): Promise<CategoryRow[]> {
-  const page = await categoriesCollection().list({ pageNo: 1, pageSize: 100 });
-  const items = (page as { items?: BlocksRecord[] }).items ?? [];
-  return items.map(mapCategory).sort((a, b) => a.name.localeCompare(b.name));
+  const page = await categoriesCollection().list({ pageNo: 1, pageSize: 200 });
+  const rows = pageItems(page, "getCategorys").map(mapCategory).filter((c) => c.id && c.name);
+  // Dedupe by name (keep first): earlier builds re-seeded on every load.
+  const seen = new Set<string>();
+  const unique = rows.filter((c) => {
+    const key = c.name.trim().toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return unique.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function listItems(): Promise<ItemRow[]> {
   const page = await itemsCollection().list({ pageNo: 1, pageSize: 200 });
-  const items = (page as { items?: BlocksRecord[] }).items ?? [];
-  return items.map(mapItem);
+  return pageItems(page, "getItems").map(mapItem).filter((i) => i.id);
 }
 
 /** Neutral starter categories (parity with src/lib/categories.ts). */
@@ -122,7 +157,7 @@ export async function getOrSeedCategories(): Promise<CategoryRow[]> {
   const existing = await listCategories();
   if (existing.length > 0) return existing;
   for (const c of DEFAULT_CATEGORIES) {
-    await createCategory({ name: c.name, color: c.color, icon: c.icon });
+    await categoriesCollection().create({ name: c.name, color: c.color, icon: c.icon });
   }
   return listCategories();
 }
@@ -133,7 +168,7 @@ export async function createCategory(input: {
   icon: string;
 }): Promise<CategoryRow> {
   const res = await categoriesCollection().create(input);
-  const id = str((res as { itemId?: string }).itemId);
+  const id = mutationItemId(res, "insertCategory");
   const rows = await listCategories();
   const found = rows.find((c) => c.id === id);
   if (found) return found;
@@ -171,7 +206,7 @@ export async function createItem(input: {
     snoozedUntil: null,
     completedAt: null,
   });
-  return str((res as { itemId?: string }).itemId);
+  return mutationItemId(res, "insertItem");
 }
 
 /** Data backend preference during dual-run. Set NEXT_PUBLIC_DATA_PROVIDER=blocks on Blocks deploys. */
