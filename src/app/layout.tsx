@@ -3,6 +3,8 @@ import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
 
 import "./globals.css";
 
+import { BlocksAuthProvider } from "@/components/blocks-auth-provider";
+
 const fraunces = Fraunces({
   subsets: ["latin"],
   variable: "--font-display",
@@ -45,7 +47,7 @@ export default function RootLayout({
         >
           Skip to content
         </a>
-        {children}
+        <BlocksAuthProvider>{children}</BlocksAuthProvider>
       </body>
     </html>
   );

@@ -166,6 +166,9 @@ importers:
 
   .:
     dependencies:
+      '@seliseblocks/client':
+        specifier: ^0.2.0
+        version: 0.2.0
       '@supabase/ssr':
         specifier: ^0.12.7
         version: 0.12.7(@supabase/supabase-js@2.117.2)
@@ -1466,6 +1469,10 @@ packages:
 
   '@rtsao/scc@1.1.0':
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
+
+  '@seliseblocks/client@0.2.0':
+    resolution: {integrity: sha512-+z0bnsagRBxFxE/lQ0cZO4y9PVLPw5roS5G2LsBqixikchPiIPTHC1I1hbt40sWJBFOzeRdC2gGzFNZvY5yJnw==}
+    engines: {node: '>=20'}
 
   '@supabase/auth-js@2.117.2':
     resolution: {integrity: sha512-Z3WnGwrphYZubrLbxp5Iv0tLA9A5GhvKzJ/ZXglxqwd2QEH2R4dXRltjVJ8sIn4xEW2BSFIGT0yALVJIgZeDYw==}
@@ -4633,6 +4640,8 @@ snapshots:
   '@rolldown/pluginutils@1.0.1': {}
 
   '@rtsao/scc@1.1.0': {}
+
+  '@seliseblocks/client@0.2.0': {}
 
   '@supabase/auth-js@2.117.2':
     dependencies:

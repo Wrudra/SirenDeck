@@ -177,16 +177,13 @@ Skills installed, `Migration.md` started, project selected, brief captured.
 5. Data migration / user-id mapping: **deferred** (greenfield first).
 6. App wiring (`@seliseblocks/client`, callback route): **pending** (implementation skill).
 
-### Phase 2 — Data schema on Blocks
+### Phase 2 — Data schema on Blocks ✅ (model + User access; row RLS gap)
 
-1. Author schemas for `categories`, `items`, `reminders`, `attachments` under
-   `blocks/data/schemas/` via `blocks-data-gateway-configuration`.
-2. Express ownership rules as Blocks data rules (replacement for RLS
-   `user_id = auth.uid()`).
-3. Reload schema; verify with `blocks data schema list`.
-4. **UNKNOWN:** type mapping (`numeric`, `date`, CHECKs, partial indexes);
-   attachment binary strategy (object storage path prefix `{user_id}/`).
-5. **UNKNOWN:** whether to run `blocks init` first to scaffold folders.
+1. ~~Author schemas~~ **done** (`Category`, `Item`, `Reminder`, `Attachment`).
+2. Ownership: User-level schema access **done**; CreatedBy row policies **pending**.
+3. ~~Reload / list~~ **done** (`totalCount: 4`).
+4. Type mapping chosen (see §10); attachment binaries still later.
+5. ~~`blocks init`~~ **done**.
 
 ### Phase 3 — App wiring (dual-client period on `dev`)
 
@@ -260,23 +257,21 @@ Skills installed, `Migration.md` started, project selected, brief captured.
 | _(done-deferred)_ | Data migration strategy — deferred; greenfield first. |
 | _(open)_ | Whether GitHub SirenDeck is linked in Blocks Release. |
 | _(open)_ | Cutover date / DNS / whether to keep a read-only Supabase archive. |
-| _(open)_ | First Blocks end-user + real login smoke test. |
+| 2026-10-06 | Phase 2: schemas Category/Item/Reminder/Attachment live; User-level security; Next OIDC callback wired. |
+| _(open)_ | First Blocks end-user + real login smoke test (need email). |
 | _(open)_ | Local HTTPS for Next on project domain (cookie-capable). |
 
 ---
 
 ## 8. Immediate next actions (suggested)
 
-1. ~~Phase 1: enable OIDC + register public client~~ **DONE** (see §9).
-2. **Phase 2:** `blocks init` (if needed) + draft Data Gateway schemas for
-   `categories`, `items`, `reminders`, `attachments` (greenfield; ownership rules
-   replacing RLS). Skill: `blocks-data-gateway-configuration`.
-3. Parallel/soon: create first end user; wire Next.js auth via
-   `blocks-iam-sso-oidc-implementation` + bootstrap `existing-app` flow
-   (`@seliseblocks/client`, `/login/callback`, env from `.env.example`).
-4. Confirm Release repo linkage: `blocks release repos list --json`.
-5. Plan local HTTPS on `dblcyi-eocee.slsblx.com` for cookie-capable login tests
-   (Next adaptation of `blocks-frontend-local-https`).
+1. ~~Phase 1 OIDC~~ **DONE** (§9).
+2. ~~Phase 2 schemas + auth wiring~~ **DONE** (§10) — except first user + CreatedBy RLS.
+3. **Create first end user** (need email) via `blocks iam users create` (mail ready).
+4. **Phase 3:** wire Money Map to Data Gateway CRUD (`blocks-data-gateway-crud`);
+   seed default categories; harden CreatedBy policies.
+5. Confirm Release repo linkage: `blocks release repos list --json`.
+6. Local HTTPS on project domain for cookie-capable login tests.
 
 ---
 
@@ -372,3 +367,116 @@ reporting=opt-out
 ```
 
 CLI: `@seliseblocks/cli-os` **0.8.0** (latest).
+
+---
+
+## 10. Phase 2 status — schemas + Next auth wiring (2026-10-06)
+
+**Status: DONE (platform schemas + incremental auth wiring).** Real end-user login still needs a first IAM user + HTTPS cookie path.
+
+### Decisions (locked)
+
+1. Greenfield data — no Supabase migrate yet.
+2. Email+password only (hosted Blocks login) — no social IdP.
+3. Wire existing Next.js app — do not scaffold a separate starter.
+
+### Data Gateway
+
+**Data source:** Blocks-managed storage (`blocks data config get` → `dbConnectionString: default`).
+
+**Init:** `blocks init` created `blocks.json`, `blocks/data/rules.json` (`.env.example` already existed).
+
+**Schemas pushed** (order Category → Item → Reminder → Attachment) via:
+
+```bash
+blocks data validate --json
+blocks data sync --dry-run --json
+blocks data sync --yes --json
+```
+
+First push failed without `collectionName` (`Collection_Name_Is_Required`). Added names matching project pattern `blx_{SchemaName}s`, then sync succeeded.
+
+| Schema | Collection | Schema id | App fields (excl. platform) |
+|---|---|---|---|
+| Category | `blx_Categorys` | `aceebc8f-a71d-4946-b725-49cb88ca38b4` | name, color, icon |
+| Item | `blx_Items` | `a1b87a6c-7349-4e48-93d1-24d29854feaa` | categoryId, title, notes, dueDate, status, recurrence, autoRenews, amount, currency, snoozedUntil, completedAt |
+| Reminder | `blx_Reminders` | `ec581973-f247-445d-b0cc-32533141b108` | itemId, daysBefore, sentAt |
+| Attachment | `blx_Attachments` | `d27a6302-5463-48b8-94b0-1695687d7121` | itemId, storagePath, filename, mimeType, sizeBytes |
+
+Platform system fields (do **not** define in schema JSON): `ItemId`, `CreatedDate`, `CreatedBy`, `LastUpdatedDate`, `LastUpdatedBy`, `Language`, `OrganizationId`, `Tags`.
+
+#### Field mapping (Supabase → Blocks)
+
+| Supabase | Blocks |
+|---|---|
+| `id` uuid PK | `ItemId` (platform) |
+| `user_id` / RLS `auth.uid()` | `CreatedBy` (platform) + access rules |
+| `created_at` / `updated_at` | `CreatedDate` / `LastUpdatedDate` |
+| `categories.name/color/icon` | `Category.name/color/icon` (String) |
+| `items.category_id` | `Item.categoryId` (String id ref) |
+| `items.title/notes` | `Item.title/notes` (String) |
+| `items.due_date` date | `Item.dueDate` (DateTime; date-only semantics in app) |
+| `items.status/recurrence/currency` | String enums (same values; enforce via validation later) |
+| `items.auto_renews` | `Item.autoRenews` (Boolean) |
+| `items.amount` numeric | `Item.amount` (**String** decimal — avoid Float drift) |
+| `items.snoozed_until` / `completed_at` | `Item.snoozedUntil` / `completedAt` (DateTime) |
+| `reminders.item_id/days_before/sent_at` | `Reminder.itemId` / `daysBefore` (Int) / `sentAt` |
+| `attachments.*` | `Attachment.*` metadata; binaries → Blocks storage later |
+
+#### Ownership / RLS replacement
+
+- Create path auto-granted **Public** access (`makeSchemaPublic`); we immediately deployed **User** (authenticated) schema access for READ/WRITE/EDIT/DELETE on all four schemas via `blocks/data/rules.json` → `security[]` → `blocks data rules deploy`.
+- **Row-level “own rows only” (`CreatedBy == current user`)** Custom policies were **not** invented: `ruleGroup` JSON shape is not documented in installed skills/CLI. **Gap:** until Custom `CreatedBy` policies are verified (portal Data access UI or a pulled example policy), any authenticated user who can hit the gateway can read/write all rows. Treat as **Phase 2.1 security hardening** before production data.
+- App-layer filters on `CreatedBy` are a temporary defense, not a substitute.
+
+Local files: `blocks/data/schemas/*.json`, `blocks/data/rules.json`, `blocks.json`.
+
+### Next.js auth wiring (incremental)
+
+Installed `@seliseblocks/client@0.2.0`.
+
+| File | Role |
+|---|---|
+| `src/lib/blocks/config.ts` | Reads `NEXT_PUBLIC_BLOCKS_*`; `isBlocksLoginConfigured()`; `NEXT_PUBLIC_AUTH_PROVIDER` |
+| `src/lib/blocks/client.ts` | Single `createBlocksClient` singleton |
+| `src/lib/blocks/auth.ts` | `startLogin` / `completeLogin` / `fetchSessionClaims` / `logout` |
+| `src/lib/blocks/auth-token.ts` | Optional bearer cache (cookie flow is primary) |
+| `src/lib/blocks/jwt.ts` | Minimal JWT helpers |
+| `src/components/blocks-auth-provider.tsx` | Client session status/claims |
+| `src/components/blocks-login-button.tsx` | “Continue with Blocks” → `redirectToProvider` |
+| `src/app/login/callback/page.tsx` | OIDC callback (`/login/callback`) |
+| `src/app/layout.tsx` | Wraps tree in `BlocksAuthProvider` |
+| `src/app/login/page.tsx` | Blocks button when configured; Supabase form when preferred/fallback |
+
+`.env.example` documents Blocks public vars + `NEXT_PUBLIC_AUTH_PROVIDER=blocks`.
+
+Supabase clients/routes remain for dual-run; Money Map data still Supabase/empty — not switched to Data Gateway CRUD yet.
+
+### First end user
+
+- `blocks iam users list` → **0 users**.
+- Mail **is** configured (Default SMTP) → prefer invite-without-password path.
+- **Not created this turn** — need the user’s chosen email + role confirmation.
+
+```bash
+blocks mail config list --json                    # already OK
+blocks iam roles list --json
+blocks iam roles assignable --json
+blocks iam email available "<email>" --json
+blocks iam users create --email "<email>" --roles "<role>" --dry-run --json
+# then --yes after approval
+```
+
+Portal alternative: https://os.seliseblocks.com (Users) then verify with `blocks iam users list`.
+
+### Remaining gaps
+
+1. First IAM user + real login smoke test on `https://dblcyi-eocee.slsblx.com` (or local HTTPS).
+2. Local cookie caveat: `http://localhost:3000` callback is registered but Secure cookies will not stick.
+3. Custom `CreatedBy` row policies (portal / verified ruleGroup).
+4. Field validations (title length, status enum, amount regex, sizeBytes max).
+5. Wire Money Map CRUD to `blocksClient.data.collection("Item"|…)` (Phase 3).
+6. Default category seed (was Supabase trigger on signup) → app or workflow after first login.
+7. Attachments binary storage config.
+8. AGENTS.md stack conflict still open.
+
