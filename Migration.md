@@ -42,7 +42,7 @@ If you are opening SirenDeck cold on `dev`:
 
 1. Read the Blocks section at the **bottom** of `AGENTS.md` and the skill under `.agents/skills/blocks-bootstrap/` before changing IAM or Data Gateway config.
 2. Treat the top-of-file “Stack (fixed)” Supabase rules as describing **`main` / legacy paths**, not as a ban on Blocks work on `dev`.
-3. Public Blocks config is in `.env.example`, Dockerfile `ENV`, and `src/lib/blocks/config.ts` fallbacks — three copies on purpose during dual-run; keep them aligned.
+3. Public Blocks config comes from `.env.example` (placeholders) + local `.env.local` + Blocks Release secrets as build-args. Dockerfile `ARG`/`ENV` only from build-args with fail-fast if required `NEXT_PUBLIC_*` are blank — no baked project/client IDs in the Dockerfile or `config.ts`.
 4. Data ownership truth is `blocks/data/rules.json` + deployed gateway policies, not app-layer filters alone.
 5. Do not commit `.sirendeck-check/`, `.playwright-mcp/`, or smoke-test passwords. `.gitignore` now blocks the common temp paths.
 
@@ -633,6 +633,7 @@ Supabase clients under `src/lib/supabase/*`, migrations under `supabase/`, and `
 | 2026-10-06 | Money Map dual-path + category seed; Release linked to `dev`. |
 | 2026-10-06 | Dockerfile/kaniko iteration: pnpm, port 8080, Release build-args (no baked IDs), scope quoting. |
 | 2026-10-06 | OIDC smoke test green; GraphQL unwrap + seed guard + category name dedupe. |
+| 2026-10-06 | **Security pass:** scrub Dockerfile bake-ins (project key / OIDC client id / API URLs); redact tenant/client/IdP IDs in `Migration.md`; placeholder-ize `.env.example`; drop `config.ts` hardcoded defaults. Known residual: `blocks.json` still holds `tenantId` from `blocks init` (CLI pin, not a public env bake-in). |
 | _(open)_ | When to rewrite AGENTS.md “Stack (fixed)” — proposed Phase 5. |
 | _(open)_ | Supabase data migration strategy / cutover date / DNS. |
 | _(open)_ | Duplicate category cleanup in gateway. |
