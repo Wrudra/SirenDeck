@@ -623,3 +623,10 @@ Login page hydrated to “Blocks login is not configured” because empty
 so the client JS bundle had blank OIDC values (SSR still saw runtime secrets → React #418).
 Fix: bake public `NEXT_PUBLIC_*` as plain `ENV` (no ARG) and assert client id appears in `.next/static` during image build.
 
+### Release note (client config fallbacks)
+
+Even with Dockerfile ENV bake, hydrated login still showed “not configured”
+(SSR had runtime secrets → React #418). Added public non-secret fallbacks in
+`src/lib/blocks/config.ts` so OIDC client id / API URL / key resolve in the
+browser without relying on Next inlining.
+

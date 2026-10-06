@@ -177,6 +177,7 @@ export async function createItem(input: {
 /** Data backend preference during dual-run. Set NEXT_PUBLIC_DATA_PROVIDER=blocks on Blocks deploys. */
 export function getDataProviderPreference(): "blocks" | "supabase" {
   const raw = (process.env.NEXT_PUBLIC_DATA_PROVIDER ?? "").trim().toLowerCase();
+  if (raw === "supabase") return "supabase";
   if (raw === "blocks") return "blocks";
-  return "supabase";
+  return "blocks";
 }
