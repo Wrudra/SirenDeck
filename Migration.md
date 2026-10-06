@@ -611,3 +611,8 @@ First `blocks release setup` build `d1965cc6-67b4-4a44-b7f2-b61c2c072c12` **Fail
 kaniko `error resolving dockerfile path` — repo had no `Dockerfile`.
 Fix: add multi-stage Next.js `Dockerfile` (`output: "standalone"`) + `.dockerignore`, then `release deploy`.
 
+### Release note (deploy succeeded, domain 502)
+
+Build `ecdd6cb1-2b49-44cc-8cef-29b93e31d74b` **Succeeded** (commit `cdb2503`); Deploy reported successful.
+`https://dblcyi-eocee.slsblx.com` still returned nginx **502** after rollout — likely container listen port mismatch (app was on 3000). Follow-up: Dockerfile `PORT=8080` + bake public `NEXT_PUBLIC_*` defaults for Next build inlining.
+
