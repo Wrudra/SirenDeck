@@ -1,47 +1,320 @@
 {
-  "policies": [],
+  "policies": [
+    {
+      "schemaName": "Attachment",
+      "policyName": "read_own_createdby",
+      "policyDescription": "Allow read when CreatedBy equals current user id",
+      "policyType": 0,
+      "operation": 0,
+      "fieldNames": [],
+      "ruleGroup": {
+        "logicalOperator": 0,
+        "rules": [
+          {
+            "leftSource": 1,
+            "leftOperand": "UserID",
+            "operator": 0,
+            "rightSource": 2,
+            "rightOperand": "CreatedBy",
+            "rightOperands": [],
+            "staticValue": null,
+            "description": null
+          }
+        ],
+        "nestedGroups": []
+      },
+      "priority": 1,
+      "isAllowPolicy": true
+    },
+    {
+      "schemaName": "Attachment",
+      "policyName": "edit_own_createdby",
+      "policyDescription": "Allow edit when CreatedBy equals current user id",
+      "policyType": 0,
+      "operation": 2,
+      "fieldNames": [],
+      "ruleGroup": {
+        "logicalOperator": 0,
+        "rules": [
+          {
+            "leftSource": 1,
+            "leftOperand": "UserID",
+            "operator": 0,
+            "rightSource": 2,
+            "rightOperand": "CreatedBy",
+            "rightOperands": [],
+            "staticValue": null,
+            "description": null
+          }
+        ],
+        "nestedGroups": []
+      },
+      "priority": 1,
+      "isAllowPolicy": true
+    },
+    {
+      "schemaName": "Attachment",
+      "policyName": "delete_own_createdby",
+      "policyDescription": "Allow delete when CreatedBy equals current user id",
+      "policyType": 0,
+      "operation": 3,
+      "fieldNames": [],
+      "ruleGroup": {
+        "logicalOperator": 0,
+        "rules": [
+          {
+            "leftSource": 1,
+            "leftOperand": "UserID",
+            "operator": 0,
+            "rightSource": 2,
+            "rightOperand": "CreatedBy",
+            "rightOperands": [],
+            "staticValue": null,
+            "description": null
+          }
+        ],
+        "nestedGroups": []
+      },
+      "priority": 1,
+      "isAllowPolicy": true
+    },
+    {
+      "schemaName": "Category",
+      "policyName": "read_own_createdby",
+      "policyDescription": "Allow read when CreatedBy equals current user id",
+      "policyType": 0,
+      "operation": 0,
+      "fieldNames": [],
+      "ruleGroup": {
+        "logicalOperator": 0,
+        "rules": [
+          {
+            "leftSource": 1,
+            "leftOperand": "UserID",
+            "operator": 0,
+            "rightSource": 2,
+            "rightOperand": "CreatedBy",
+            "rightOperands": [],
+            "staticValue": null,
+            "description": null
+          }
+        ],
+        "nestedGroups": []
+      },
+      "priority": 1,
+      "isAllowPolicy": true
+    },
+    {
+      "schemaName": "Category",
+      "policyName": "edit_own_createdby",
+      "policyDescription": "Allow edit when CreatedBy equals current user id",
+      "policyType": 0,
+      "operation": 2,
+      "fieldNames": [],
+      "ruleGroup": {
+        "logicalOperator": 0,
+        "rules": [
+          {
+            "leftSource": 1,
+            "leftOperand": "UserID",
+            "operator": 0,
+            "rightSource": 2,
+            "rightOperand": "CreatedBy",
+            "rightOperands": [],
+            "staticValue": null,
+            "description": null
+          }
+        ],
+        "nestedGroups": []
+      },
+      "priority": 1,
+      "isAllowPolicy": true
+    },
+    {
+      "schemaName": "Category",
+      "policyName": "delete_own_createdby",
+      "policyDescription": "Allow delete when CreatedBy equals current user id",
+      "policyType": 0,
+      "operation": 3,
+      "fieldNames": [],
+      "ruleGroup": {
+        "logicalOperator": 0,
+        "rules": [
+          {
+            "leftSource": 1,
+            "leftOperand": "UserID",
+            "operator": 0,
+            "rightSource": 2,
+            "rightOperand": "CreatedBy",
+            "rightOperands": [],
+            "staticValue": null,
+            "description": null
+          }
+        ],
+        "nestedGroups": []
+      },
+      "priority": 1,
+      "isAllowPolicy": true
+    },
+    {
+      "schemaName": "Item",
+      "policyName": "read_own_createdby",
+      "policyDescription": "Allow read when CreatedBy equals current user id",
+      "policyType": 0,
+      "operation": 0,
+      "fieldNames": [],
+      "ruleGroup": {
+        "logicalOperator": 0,
+        "rules": [
+          {
+            "leftSource": 1,
+            "leftOperand": "UserID",
+            "operator": 0,
+            "rightSource": 2,
+            "rightOperand": "CreatedBy",
+            "rightOperands": [],
+            "staticValue": null,
+            "description": null
+          }
+        ],
+        "nestedGroups": []
+      },
+      "priority": 1,
+      "isAllowPolicy": true
+    },
+    {
+      "schemaName": "Item",
+      "policyName": "edit_own_createdby",
+      "policyDescription": "Allow edit when CreatedBy equals current user id",
+      "policyType": 0,
+      "operation": 2,
+      "fieldNames": [],
+      "ruleGroup": {
+        "logicalOperator": 0,
+        "rules": [
+          {
+            "leftSource": 1,
+            "leftOperand": "UserID",
+            "operator": 0,
+            "rightSource": 2,
+            "rightOperand": "CreatedBy",
+            "rightOperands": [],
+            "staticValue": null,
+            "description": null
+          }
+        ],
+        "nestedGroups": []
+      },
+      "priority": 1,
+      "isAllowPolicy": true
+    },
+    {
+      "schemaName": "Item",
+      "policyName": "delete_own_createdby",
+      "policyDescription": "Allow delete when CreatedBy equals current user id",
+      "policyType": 0,
+      "operation": 3,
+      "fieldNames": [],
+      "ruleGroup": {
+        "logicalOperator": 0,
+        "rules": [
+          {
+            "leftSource": 1,
+            "leftOperand": "UserID",
+            "operator": 0,
+            "rightSource": 2,
+            "rightOperand": "CreatedBy",
+            "rightOperands": [],
+            "staticValue": null,
+            "description": null
+          }
+        ],
+        "nestedGroups": []
+      },
+      "priority": 1,
+      "isAllowPolicy": true
+    },
+    {
+      "schemaName": "Reminder",
+      "policyName": "read_own_createdby",
+      "policyDescription": "Allow read when CreatedBy equals current user id",
+      "policyType": 0,
+      "operation": 0,
+      "fieldNames": [],
+      "ruleGroup": {
+        "logicalOperator": 0,
+        "rules": [
+          {
+            "leftSource": 1,
+            "leftOperand": "UserID",
+            "operator": 0,
+            "rightSource": 2,
+            "rightOperand": "CreatedBy",
+            "rightOperands": [],
+            "staticValue": null,
+            "description": null
+          }
+        ],
+        "nestedGroups": []
+      },
+      "priority": 1,
+      "isAllowPolicy": true
+    },
+    {
+      "schemaName": "Reminder",
+      "policyName": "edit_own_createdby",
+      "policyDescription": "Allow edit when CreatedBy equals current user id",
+      "policyType": 0,
+      "operation": 2,
+      "fieldNames": [],
+      "ruleGroup": {
+        "logicalOperator": 0,
+        "rules": [
+          {
+            "leftSource": 1,
+            "leftOperand": "UserID",
+            "operator": 0,
+            "rightSource": 2,
+            "rightOperand": "CreatedBy",
+            "rightOperands": [],
+            "staticValue": null,
+            "description": null
+          }
+        ],
+        "nestedGroups": []
+      },
+      "priority": 1,
+      "isAllowPolicy": true
+    },
+    {
+      "schemaName": "Reminder",
+      "policyName": "delete_own_createdby",
+      "policyDescription": "Allow delete when CreatedBy equals current user id",
+      "policyType": 0,
+      "operation": 3,
+      "fieldNames": [],
+      "ruleGroup": {
+        "logicalOperator": 0,
+        "rules": [
+          {
+            "leftSource": 1,
+            "leftOperand": "UserID",
+            "operator": 0,
+            "rightSource": 2,
+            "rightOperand": "CreatedBy",
+            "rightOperands": [],
+            "staticValue": null,
+            "description": null
+          }
+        ],
+        "nestedGroups": []
+      },
+      "priority": 1,
+      "isAllowPolicy": true
+    }
+  ],
   "security": [
     {
-      "schemaId": "d27a6302-5463-48b8-94b0-1695687d7121",
-      "schemaName": "Attachment",
-      "accessLevel": 1,
-      "operation": 0,
-      "policyType": 0,
-      "fieldNames": []
-    },
-    {
-      "schemaId": "d27a6302-5463-48b8-94b0-1695687d7121",
-      "schemaName": "Attachment",
-      "accessLevel": 1,
-      "operation": 1,
-      "policyType": 0,
-      "fieldNames": []
-    },
-    {
-      "schemaId": "d27a6302-5463-48b8-94b0-1695687d7121",
-      "schemaName": "Attachment",
-      "accessLevel": 1,
-      "operation": 2,
-      "policyType": 0,
-      "fieldNames": []
-    },
-    {
-      "schemaId": "d27a6302-5463-48b8-94b0-1695687d7121",
-      "schemaName": "Attachment",
-      "accessLevel": 1,
-      "operation": 3,
-      "policyType": 0,
-      "fieldNames": []
-    },
-    {
-      "schemaId": "aceebc8f-a71d-4946-b725-49cb88ca38b4",
-      "schemaName": "Category",
-      "accessLevel": 1,
-      "operation": 0,
-      "policyType": 0,
-      "fieldNames": []
-    },
-    {
       "schemaId": "aceebc8f-a71d-4946-b725-49cb88ca38b4",
       "schemaName": "Category",
       "accessLevel": 1,
@@ -52,7 +325,15 @@
     {
       "schemaId": "aceebc8f-a71d-4946-b725-49cb88ca38b4",
       "schemaName": "Category",
-      "accessLevel": 1,
+      "accessLevel": 3,
+      "operation": 0,
+      "policyType": 0,
+      "fieldNames": []
+    },
+    {
+      "schemaId": "aceebc8f-a71d-4946-b725-49cb88ca38b4",
+      "schemaName": "Category",
+      "accessLevel": 3,
       "operation": 2,
       "policyType": 0,
       "fieldNames": []
@@ -60,7 +341,7 @@
     {
       "schemaId": "aceebc8f-a71d-4946-b725-49cb88ca38b4",
       "schemaName": "Category",
-      "accessLevel": 1,
+      "accessLevel": 3,
       "operation": 3,
       "policyType": 0,
       "fieldNames": []
@@ -69,14 +350,6 @@
       "schemaId": "a1b87a6c-7349-4e48-93d1-24d29854feaa",
       "schemaName": "Item",
       "accessLevel": 1,
-      "operation": 0,
-      "policyType": 0,
-      "fieldNames": []
-    },
-    {
-      "schemaId": "a1b87a6c-7349-4e48-93d1-24d29854feaa",
-      "schemaName": "Item",
-      "accessLevel": 1,
       "operation": 1,
       "policyType": 0,
       "fieldNames": []
@@ -84,7 +357,15 @@
     {
       "schemaId": "a1b87a6c-7349-4e48-93d1-24d29854feaa",
       "schemaName": "Item",
-      "accessLevel": 1,
+      "accessLevel": 3,
+      "operation": 0,
+      "policyType": 0,
+      "fieldNames": []
+    },
+    {
+      "schemaId": "a1b87a6c-7349-4e48-93d1-24d29854feaa",
+      "schemaName": "Item",
+      "accessLevel": 3,
       "operation": 2,
       "policyType": 0,
       "fieldNames": []
@@ -92,7 +373,7 @@
     {
       "schemaId": "a1b87a6c-7349-4e48-93d1-24d29854feaa",
       "schemaName": "Item",
-      "accessLevel": 1,
+      "accessLevel": 3,
       "operation": 3,
       "policyType": 0,
       "fieldNames": []
@@ -101,14 +382,6 @@
       "schemaId": "ec581973-f247-445d-b0cc-32533141b108",
       "schemaName": "Reminder",
       "accessLevel": 1,
-      "operation": 0,
-      "policyType": 0,
-      "fieldNames": []
-    },
-    {
-      "schemaId": "ec581973-f247-445d-b0cc-32533141b108",
-      "schemaName": "Reminder",
-      "accessLevel": 1,
       "operation": 1,
       "policyType": 0,
       "fieldNames": []
@@ -116,7 +389,15 @@
     {
       "schemaId": "ec581973-f247-445d-b0cc-32533141b108",
       "schemaName": "Reminder",
-      "accessLevel": 1,
+      "accessLevel": 3,
+      "operation": 0,
+      "policyType": 0,
+      "fieldNames": []
+    },
+    {
+      "schemaId": "ec581973-f247-445d-b0cc-32533141b108",
+      "schemaName": "Reminder",
+      "accessLevel": 3,
       "operation": 2,
       "policyType": 0,
       "fieldNames": []
@@ -124,7 +405,39 @@
     {
       "schemaId": "ec581973-f247-445d-b0cc-32533141b108",
       "schemaName": "Reminder",
+      "accessLevel": 3,
+      "operation": 3,
+      "policyType": 0,
+      "fieldNames": []
+    },
+    {
+      "schemaId": "d27a6302-5463-48b8-94b0-1695687d7121",
+      "schemaName": "Attachment",
       "accessLevel": 1,
+      "operation": 1,
+      "policyType": 0,
+      "fieldNames": []
+    },
+    {
+      "schemaId": "d27a6302-5463-48b8-94b0-1695687d7121",
+      "schemaName": "Attachment",
+      "accessLevel": 3,
+      "operation": 0,
+      "policyType": 0,
+      "fieldNames": []
+    },
+    {
+      "schemaId": "d27a6302-5463-48b8-94b0-1695687d7121",
+      "schemaName": "Attachment",
+      "accessLevel": 3,
+      "operation": 2,
+      "policyType": 0,
+      "fieldNames": []
+    },
+    {
+      "schemaId": "d27a6302-5463-48b8-94b0-1695687d7121",
+      "schemaName": "Attachment",
+      "accessLevel": 3,
       "operation": 3,
       "policyType": 0,
       "fieldNames": []

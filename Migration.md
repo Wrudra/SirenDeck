@@ -258,7 +258,9 @@ Skills installed, `Migration.md` started, project selected, brief captured.
 | _(open)_ | Whether GitHub SirenDeck is linked in Blocks Release. |
 | _(open)_ | Cutover date / DNS / whether to keep a read-only Supabase archive. |
 | 2026-10-06 | Phase 2: schemas Category/Item/Reminder/Attachment live; User-level security; Next OIDC callback wired. |
-| _(open)_ | First Blocks end-user + real login smoke test (need email). |
+| 2026-10-06 | Invited rudra483haque@gmail.com (`7196bfb4-…`) clouduser, PendingVerification. |
+| 2026-10-06 | CreatedBy ownership policies on all 4 schemas (READ/EDIT/DELETE Custom; WRITE User). |
+| _(open)_ | User must activate via email, then smoke-test Blocks login. |
 | _(open)_ | Local HTTPS for Next on project domain (cookie-capable). |
 
 ---
@@ -266,12 +268,11 @@ Skills installed, `Migration.md` started, project selected, brief captured.
 ## 8. Immediate next actions (suggested)
 
 1. ~~Phase 1 OIDC~~ **DONE** (§9).
-2. ~~Phase 2 schemas + auth wiring~~ **DONE** (§10) — except first user + CreatedBy RLS.
-3. **Create first end user** (need email) via `blocks iam users create` (mail ready).
-4. **Phase 3:** wire Money Map to Data Gateway CRUD (`blocks-data-gateway-crud`);
-   seed default categories; harden CreatedBy policies.
-5. Confirm Release repo linkage: `blocks release repos list --json`.
-6. Local HTTPS on project domain for cookie-capable login tests.
+2. ~~Phase 2 schemas + auth wiring~~ **DONE** (§10).
+3. ~~First user invite + CreatedBy ownership~~ **DONE** (§11) — activation pending.
+4. **Activate** invite for rudra483haque@gmail.com; smoke-test login on platform HTTPS domain.
+5. **Phase 3:** flip Money Map to Blocks data helpers; seed categories; validations.
+6. Confirm Release repo linkage: `blocks release repos list --json`.
 
 ---
 
@@ -479,4 +480,79 @@ Portal alternative: https://os.seliseblocks.com (Users) then verify with `blocks
 6. Default category seed (was Supabase trigger on signup) → app or workflow after first login.
 7. Attachments binary storage config.
 8. AGENTS.md stack conflict still open.
+
+---
+
+## 11. Phase 2.1 — first user + CreatedBy ownership (2026-10-06)
+
+### First end user
+
+```bash
+blocks iam email available "rudra483haque@gmail.com" --json   # isAvailable: true
+blocks iam roles list / assignable --json                     # only clouduser
+blocks iam users create --email "rudra483haque@gmail.com" \
+  --roles "clouduser" --dry-run --json
+blocks iam users create --email "rudra483haque@gmail.com" \
+  --roles "clouduser" --yes --json
+```
+
+| Field | Value |
+|---|---|
+| User id | `7196bfb4-3a49-41e8-8626-2c124735d243` |
+| Email | `rudra483haque@gmail.com` |
+| Role | `clouduser` (only assignable / least privilege available) |
+| Password | **not** set by CLI — invite-without-password |
+| State | `PendingVerification` (`active: false`, `isVerified: false`) |
+
+**Email behavior:** project mail config **Default** is present (SMTP). Invitation/activation mail should be delivered with a one-time code. User completes setup via hosted activation (`POST /iam/v4/auth/activate` with code + password + name) — typically by opening the link in the email, which lands on `accountActionBaseUrl` / `oidc/activate/`. Then sign in via app “Continue with Blocks”.
+
+Until activation completes, OIDC login will not succeed for this account.
+
+### CreatedBy ownership (CLI — no portal required)
+
+Discovered `ruleGroup` shape via API validation errors (skills did not document it):
+
+```json
+{
+  "combinator": "and",
+  "rules": [{
+    "leftSource": 1,
+    "leftOperand": "UserID",
+    "operator": 0,
+    "rightSource": 2,
+    "rightOperand": "CreatedBy"
+  }]
+}
+```
+
+Enums (discovered): `ConditionSource` Auth=1 SchemaField=2; `PolicyOperator` equal=0.
+Pulled policies normalize `combinator` → `logicalOperator: 0`.
+
+**Applied to Category, Item, Reminder, Attachment:**
+
+| Operation | Access level | Policy |
+|---|---|---|
+| WRITE (create) | User / all logged-in (`1`) | none — platform stamps `CreatedBy` |
+| READ / EDIT / DELETE | Custom (`3`) | `*_own_createdby` allow when Auth.UserID == Schema.CreatedBy |
+
+Verified with `blocks data rules policy get <Schema>` — 3 policies each.
+`blocks data schema aggregation` shows R/E/D=3, W=1.
+
+Local: `blocks/data/rules.json` holds 12 policies + 16 security rows.
+
+**Portal alternative** (if CLI ever unavailable): Data Gateway → schema → Schema Access → set View/Edit/Delete to **Custom** → Add rule: Auth **UserID** **equal** Schema Field **CreatedBy** → Publish. Create stays **All Logged In**. Docs: https://docs.seliseblocks.com/os/data-gateway
+
+### Money Map wiring (started, not flipped)
+
+- Added `src/lib/blocks/data.ts` — `listCategories` / `listItems` / `createCategory` / `createItem` via `blocksClient.data.collection`, mappers to existing `CategoryRow`/`ItemRow`.
+- `NEXT_PUBLIC_DATA_PROVIDER=supabase` (default) — app page + server actions still Supabase.
+- Flip to `blocks` only after activation + HTTPS cookie login smoke test.
+
+### Remaining
+
+1. Activate `rudra483haque@gmail.com` from invite email; smoke-test Blocks login on `https://dblcyi-eocee.slsblx.com`.
+2. Seed default categories via Blocks after first login.
+3. Flip Money Map reads/writes to Blocks data helpers / dual-run flag.
+4. Field validations (title length, enums, amount).
+5. Attachments storage + reminders workflow.
 
