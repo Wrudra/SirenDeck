@@ -1,33 +1,78 @@
-# SirenDeck → Blocks OS Migration Notebook
+# Migrating SirenDeck from Vercel + Supabase to Blocks OS
 
-Living notes for migrating SirenDeck off Vercel + Supabase onto SELISE Blocks OS
-via the Blocks CLI, while keeping `main` as the production Vercel/Supabase line.
+**A field notes engineering post** — what we actually did on branch `dev`, what broke, and what is still unfinished.
+
+SirenDeck is a personal life-admin app: a Money Map treemap of renewals, subscriptions, bills, and documents. Until this migration it ran as a Next.js App Router app on Vercel with Supabase Auth, Postgres + RLS, Storage, and an Edge Function + `pg_cron` reminder pipeline.
+
+This document is the migration notebook rewritten as a long-form tech post. It covers the full path from skill bootstrap through OIDC, Data Gateway schemas, CreatedBy ownership policies, Next.js wiring, Blocks Release / kaniko, login smoke tests, and the GraphQL response-shape bug that re-seeded categories on every load. It is intentionally honest about gaps.
+
+**Branch rule (non-negotiable):** `main` stays the live Vercel/Supabase production line. All migration work lives on `dev` and pushes only to `origin/dev`. No PR to `main` unless explicitly requested. Commits are owner-authored only — no `Co-authored-by` trailers.
 
 **Last updated:** 2026-10-06 (Asia/Dhaka)
 
 ---
 
-## 1. Goal
+## Table of contents
 
-Migrate SirenDeck completely to Blocks OS:
-
-| Concern | Today (`main`) | Target (`dev` → Blocks) |
-|---|---|---|
-| Hosting | Vercel | Blocks Release / platform subdomain |
-| Auth | Supabase Auth (email+password) | Blocks IAM + hosted SSO/OIDC |
-| Database | Supabase Postgres + RLS | Blocks Data Gateway schemas + rules |
-| Storage | Supabase Storage | Blocks storage config + data-storage |
-| Edge / cron | Edge Function `send-reminders` + pg_cron | Blocks Workflow (schedule/webhook) and/or Notifier/Mail |
-| Secrets | Vercel env + Supabase Vault | Blocks Secrets |
-| i18n | (none / hard-coded) | Blocks Localization (en-US, bn-BD useful) |
-
-**Hard constraint:** `main` stays the live Vercel/Supabase production line.
-All migration work happens on branch `dev` only. Push only `origin/dev`.
-Never checkout/commit/push `main` for this work. No PR to `main` unless asked.
+- [How to read this repo after the migration](#how-to-read-this-repo-after-the-migration)
+1. [Why leave Vercel + Supabase for Blocks OS](#1-why-leave-vercel--supabase-for-blocks-os)
+2. [Branch model](#2-branch-model)
+3. [Bootstrap of blocks-skills](#3-bootstrap-of-blocks-skills)
+4. [Project, domain, and CLI workflow](#4-project-domain-and-cli-workflow)
+5. [Phase 1 — OIDC](#5-phase-1--oidc)
+6. [Phase 2 — schemas, access levels, field read rules](#6-phase-2--schemas-access-levels-field-read-rules)
+7. [CreatedBy ownership policy shape](#7-createdby-ownership-policy-shape)
+8. [Next.js wiring](#8-nextjs-wiring)
+9. [Blocks Release (kaniko, Dockerfile, pnpm)](#9-blocks-release-kaniko-dockerfile-pnpm)
+10. [Login smoke test narrative](#10-login-smoke-test-narrative)
+11. [GraphQL response-shape bug, re-seed, and dedupe](#11-graphql-response-shape-bug-re-seed-and-dedupe)
+12. [What is still on Supabase vs Blocks](#12-what-is-still-on-supabase-vs-blocks)
+13. [Open issues](#13-open-issues)
+14. [Decision log](#14-decision-log)
+15. [Recommended next phases](#15-recommended-next-phases)
+16. [Lessons learned](#16-lessons-learned)
+17. [Appendix — bootstrap provenance](#17-appendix--bootstrap-provenance)
 
 ---
 
-## 2. Working model
+
+## How to read this repo after the migration
+
+If you are opening SirenDeck cold on `dev`:
+
+1. Read the Blocks section at the **bottom** of `AGENTS.md` and the skill under `.agents/skills/blocks-bootstrap/` before changing IAM or Data Gateway config.
+2. Treat the top-of-file “Stack (fixed)” Supabase rules as describing **`main` / legacy paths**, not as a ban on Blocks work on `dev`.
+3. Public Blocks config is in `.env.example`, Dockerfile `ENV`, and `src/lib/blocks/config.ts` fallbacks — three copies on purpose during dual-run; keep them aligned.
+4. Data ownership truth is `blocks/data/rules.json` + deployed gateway policies, not app-layer filters alone.
+5. Do not commit `.sirendeck-check/`, `.playwright-mcp/`, or smoke-test passwords. `.gitignore` now blocks the common temp paths.
+
+## 1. Why leave Vercel + Supabase for Blocks OS
+
+SirenDeck on `main` is a competent small product stack:
+
+| Concern | Today on `main` |
+|---|---|
+| Hosting | Vercel |
+| Auth | Supabase Auth (email + password) via `@supabase/ssr` |
+| Database | Supabase Postgres + RLS (`*_own` policies on `user_id`) |
+| Storage | Supabase Storage (attachments) |
+| Background | Edge Function `send-reminders` + `pg_cron` hourly |
+| Secrets | Vercel env + Supabase Vault |
+| Product UI | Next.js 16 / React 19, Tailwind 4, Motion, d3-hierarchy treemap |
+
+That stack is not “wrong.” The migration is not a rescue from outages. The reasons to move are product and platform:
+
+1. **Same OS as sibling SELISE products.** Blocks OS (portal `https://os.seliseblocks.com`, CLI `@seliseblocks/cli-os`) is the shared identity, data, release, mail, and workflow surface for other apps in the same account. Staying on a one-off Vercel+Supabase island means every new feature (orgs, MFA, localization, notifier) is hand-rolled twice.
+2. **IAM that is already multi-tenant.** Project key, cookie domain, hosted OIDC, and user invite/activation are first-class. Supabase email+password works; Blocks hosted login + PKCE public clients match how the rest of the account ships.
+3. **Data Gateway as the schema/rules plane.** Instead of SQL migrations + RLS policies as the only truth, schemas and access rules live as JSON the CLI can validate/sync/deploy. That is a different semantics model (more on that later) — not a drop-in — but it is the model every Blocks app is expected to use.
+4. **Release that owns the subdomain.** Platform subdomain `*.slsblx.com`, kaniko builds, and runtime secrets sync are the deploy path. Vercel remains fine for `main`; Blocks Release is the target for the Blocks-shaped app.
+5. **Future workflow / mail / localization.** Reminders today are an Edge Function + cron. Blocks Workflow + Mail/Notifier is the intended replacement. `bn-BD` is already on the project language list.
+
+What we are **not** claiming: that Blocks is faster to prototype for a single hobby app, or that Supabase RLS is obsolete. For SirenDeck specifically, the bet is consolidation onto the OS the rest of the workspace already runs.
+
+---
+
+## 2. Branch model
 
 ```
 main  ── production (Vercel + Supabase) — DO NOT TOUCH for migration
@@ -35,263 +80,122 @@ main  ── production (Vercel + Supabase) — DO NOT TOUCH for migration
   └── dev ── Blocks OS migration line — push origin/dev only
 ```
 
-- Branch: `dev`, tracking `origin/dev`
-- Commits: owner-authored only — **no** `Co-authored-by`, no AI attribution
-- Agents for this install: cursor, codex, gemini, copilot
-- Skill fronts: empty (all four read `.agents/skills/` natively)
-- Instruction pointer: `GEMINI.md` only
-- Reporting: `opt-out` (`.agents/skills/.blocks-reporting`)
-- Portal (account/env extras only): https://os.seliseblocks.com
-- Project key (dev env): `D158bd535e4d44ea58e5c53146704e2ab`
+| Branch | Role |
+|---|---|
+| `main` | Live users, live Supabase project, Vercel deploy. Untouched by migration commits. |
+| `dev` | Blocks project `D158…`, Blocks Release domain, dual-provider flags, Docker/kaniko path. |
+
+Practical consequences:
+
+- Agents and humans working the migration **never** checkout/commit/push `main` for this work.
+- `NEXT_PUBLIC_AUTH_PROVIDER` / `NEXT_PUBLIC_DATA_PROVIDER` let `dev` run Blocks-primary while Supabase clients remain in the tree for dual-run and for `main` continuity.
+- Cutover (DNS, user migration, PR `dev` → `main`) is an explicit user decision, not an agent default.
+- Commit attribution: owner-authored only. No `Co-authored-by`.
+
+This split also keeps a rollback story: if Blocks Release is broken, `main` on Vercel still serves the product.
 
 ---
 
-## 3. Bootstrap status (Steps 0–8 done 2026-10-06)
+## 3. Bootstrap of blocks-skills
 
-### Installed
+Blocks work in this repo is skill-driven. The CLI vendored **22 skills** under `.agents/skills/` from `blocks-cli`, plus rules from `blocks-skills`, and stamped provenance so future installs can diff.
 
-- **22 skills** vendored under `.agents/skills/` from
-  `https://github.com/SELISEdigitalplatforms/blocks-cli.git` @ `main`
-  (`skills_commit=e2f3919ca12184766a30b05a242b4116551faef6`)
-- Rules from
-  `https://github.com/SELISEdigitalplatforms/blocks-skills.git` @ `main`
-  (`rules_commit=3e36ede8aac902b875512e5ae14e04df1b5410bb`)
-- Stamp: `.agents/skills/.blocks-skills-source`
-- Reporting: `reporting=opt-out`
-- Step 7 verify: **clean** (markers 1/1 on AGENTS.md + GEMINI.md; no
-  `distributable` leak; skill count matches manifest; no front mismatches)
-- Mismatches: none named-without-dir; none dir-unrouted
+### What got installed
 
-### Skill list
-
-`blocks-bootstrap`, `blocks-captcha`, `blocks-data-gateway-configuration`,
-`blocks-data-gateway-crud`, `blocks-data-storage`, `blocks-frontend-local-https`,
-`blocks-iam-access-control`, `blocks-iam-account`, `blocks-iam-mfa`,
-`blocks-iam-organizations`, `blocks-iam-sso-oidc-configuration`,
-`blocks-iam-sso-oidc-implementation`, `blocks-iam-users`,
-`blocks-localization-configuration`, `blocks-localization-implementation`,
-`blocks-mail`, `blocks-notification`, `blocks-notifier`,
-`blocks-release-deployment`, `blocks-secrets`, `blocks-storage-configuration`,
-`blocks-workflow`
-
-### Agents / fronts
-
-| Agent | What it got |
+| Item | Detail |
 |---|---|
-| cursor | `.agents/skills/` + `AGENTS.md` Blocks block (native) |
-| codex | same |
-| gemini | same + `GEMINI.md` pointer |
-| copilot | same |
+| Skills repo | `https://github.com/SELISEdigitalplatforms/blocks-cli.git` @ `main` (`skills_commit=e2f3919…`) |
+| Rules repo | `https://github.com/SELISEdigitalplatforms/blocks-skills.git` @ `main` (`rules_commit=3e36ede8…`) |
+| Stamp | `.agents/skills/.blocks-skills-source` |
+| Reporting | `reporting=opt-out` in `.agents/skills/.blocks-reporting` |
+| Agents | cursor, codex, gemini, copilot |
+| Skill fronts | empty (all four read `.agents/skills/` natively) |
+| Instruction front | `GEMINI.md` only (thin pointer into `AGENTS.md`) |
+| CLI | `@seliseblocks/cli-os` **0.8.0** |
 
-Skill-front stubs: none (skill-fronts empty by design).
+Skill list:
+
+`blocks-bootstrap`, `blocks-captcha`, `blocks-data-gateway-configuration`, `blocks-data-gateway-crud`, `blocks-data-storage`, `blocks-frontend-local-https`, `blocks-iam-access-control`, `blocks-iam-account`, `blocks-iam-mfa`, `blocks-iam-organizations`, `blocks-iam-sso-oidc-configuration`, `blocks-iam-sso-oidc-implementation`, `blocks-iam-users`, `blocks-localization-configuration`, `blocks-localization-implementation`, `blocks-mail`, `blocks-notification`, `blocks-notifier`, `blocks-release-deployment`, `blocks-secrets`, `blocks-storage-configuration`, `blocks-workflow`.
+
+Step 7 verify was clean: markers 1/1 on `AGENTS.md` + `GEMINI.md`, no `distributable` leak, skill count matched the manifest, no front mismatches.
 
 ### AGENTS.md — APPEND + SURFACE conflict
 
-Existing unmarked `AGENTS.md` is SirenDeck project rules (Supabase/Vercel stack).
-Step 3 **appended** the Blocks marker block at the end; did **not** overwrite.
+SirenDeck already had an unmarked `AGENTS.md` with project rules that declare a **fixed stack**: Supabase Auth/Postgres/RLS/Storage/Edge/pg_cron and **Deploy: Vercel**.
 
-**SURFACE conflict (do not resolve silently):**
+Bootstrap Step 3 **appended** the SELISE Blocks marker block at the end. It did not overwrite the file. That left a deliberate SURFACE conflict:
 
-- Top of `AGENTS.md` says: **Stack (fixed — do not substitute)** including
-  Supabase Auth/Postgres/RLS/Storage/Edge/pg_cron and **Deploy: Vercel**.
-- Appended Blocks section routes work to Blocks IAM / Data Gateway / Release /
-  Storage / Workflow skills — which **contradict** the fixed-stack rule.
+- Top of file: do not substitute the Supabase+Vercel stack.
+- Bottom of file: route Blocks work to IAM / Data Gateway / Release / Storage / Workflow skills.
 
-Until the stack section is rewritten as part of a deliberate cutover, agents
-must treat:
+Until cutover rewrites the top “Stack (fixed)” section (planned for Phase 5), agents must treat:
 
-1. **`main` / current app code** → follow the original Supabase+Vercel rules.
-2. **Blocks migration work on `dev`** → follow the SELISE Blocks section and
-   vendored skills; do not invent parallel stacks.
+1. **`main` / current production code** → original Supabase+Vercel rules.
+2. **Blocks migration work on `dev`** → Blocks section + vendored skills.
 
-Unresolved: when to rewrite the top-of-file "Stack (fixed)" section (likely
-near cutover, not day one).
-
-Unrelated and left alone: `.github/skills/impeccable`, `.kilo/`.
+Unresolved on purpose: rewriting “Stack (fixed)” on day one would lie about what `main` still runs. Unrelated trees left alone: `.github/skills/impeccable`, local `.kilo/` worktrees.
 
 ---
 
-## 4. Current stack inventory vs Blocks target
+## 4. Project, domain, and CLI workflow
 
-### SirenDeck today (repo on `dev`, still Supabase-shaped)
-
-- **App:** Next.js **16.3.8** App Router, React 19.2.8, TypeScript, pnpm 12.8.1
-- **UI:** Tailwind 4, shadcn/ui primitives, Motion, d3-hierarchy (treemap math)
-- **Auth:** Supabase email+password via `@supabase/ssr` + `@supabase/supabase-js`
-  (`src/lib/supabase/{client,server,middleware,env,require-user}.ts`)
-- **DB:** Postgres migrations in `supabase/migrations/`
-  - `categories`, `items`, `reminders`, `attachments` — all RLS `*_own` on `user_id`
-  - money as `numeric`, due dates as `date`, default currency BDT
-- **Reminders:** Edge Function `send-reminders` + `pg_cron` hourly + Vault secrets
-- **Env:** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- **Deploy:** Vercel (`.vercel/` present)
-- **Product:** personal life-admin / Money Map treemap of renewals & costs
-
-### Blocks project brief (Step 9 — key `D158…`)
+### Project brief
 
 | Field | Value |
 |---|---|
-| Name | **SirenDeck** |
+| Name | SirenDeck |
 | Tenant / key | `D158bd535e4d44ea58e5c53146704e2ab` |
 | Environment | `dev` |
 | App domain | `https://dblcyi-eocee.slsblx.com` (PlatformSubdomain, verified) |
 | Cookie domain | `slsblx.com` |
-| Created | 2026-10-05 ~09:26 UTC |
-| Other reachable projects | Many (Demo UILM, Ripple OS, Sunrise Spiral Prize Race, PathaoPoth, Blocks Mono Monet, SELISE_HRM shared, Geo Assessment OS shared, Sun is rising, …) — do not touch |
-| OIDC clients | **none** (`oIDCClientCredentials: []`) |
-| `isOidcEnabled` | **false** — app hosted login will not work until enabled + client registered |
-| Data schemas | **empty** (`totalCount: 0`) — greenfield modelling |
 | Languages | `en-US` (default), `de-DE`, `bn-BD` |
+| Portal | `https://os.seliseblocks.com` (account/env extras only) |
 
-CLI session: project mode refreshed OK; `blocks use D158…` succeeded. No device-code login needed this run (project RT was recoverable).
+At first brief capture the project had **no** OIDC clients, `isOidcEnabled: false`, and **zero** data schemas — greenfield modelling on Blocks, with Supabase data migration deferred.
 
-### Mapping (high level)
+The account can see many other projects (Demo UILM, Ripple OS, PathaoPoth, shared HRM tenants, …). Hard rule: always `blocks use D158…` before mutating anything; never touch other tenants.
 
-| Supabase piece | Blocks skill / surface |
+### CLI workflow that actually worked
+
+```bash
+blocks use D158bd535e4d44ea58e5c53146704e2ab
+blocks auth refresh --project          # project RT was recoverable; no device-code this run
+blocks init                            # blocks.json + blocks/data/rules.json
+blocks data validate --json
+blocks data sync --dry-run --json
+blocks data sync --yes --json
+blocks data rules deploy --yes --json
+blocks release setup|deploy ...
+```
+
+`blocks.json` pins tenant, API URL, app domain, and paths to schemas/rules. Local schema JSON lives under `blocks/data/schemas/`; access policies under `blocks/data/rules.json`.
+
+### High-level mapping
+
+| Supabase piece | Blocks surface |
 |---|---|
-| Auth email/password + session cookies | `blocks-iam-sso-oidc-*`, `blocks-iam-users`, `blocks-iam-account`; need `isOidcEnabled=true` + public OIDC client; local HTTPS via `blocks-frontend-local-https` |
-| Postgres tables + RLS | `blocks-data-gateway-configuration` (schemas/rules) + `blocks-data-gateway-crud` (SDK) — **RLS ≠ Blocks rules; rewrite policies** |
-| Storage attachments | `blocks-storage-configuration` + `blocks-data-storage` |
-| Edge Function + pg_cron reminders | `blocks-workflow` (schedule) and/or `blocks-mail` / `blocks-notifier` / `blocks-notification` |
-| Vercel env secrets | `blocks-secrets` |
-| Vercel deploy | `blocks-release-deployment` |
-| (future) BN/EN copy | `blocks-localization-*` (bn-BD already on project) |
+| Auth email/password + cookies | IAM OIDC (public PKCE client) + `@seliseblocks/client` |
+| Postgres tables + RLS | Data Gateway schemas + rules (semantics ≠ RLS) |
+| Storage attachments | `blocks-storage-configuration` + `blocks-data-storage` (not done yet) |
+| Edge Function + pg_cron | Workflow / Mail / Notifier (not done yet) |
+| Vercel env | Blocks secrets + Release build env |
+| Vercel deploy | Blocks Release (kaniko) |
 
 ---
 
-## 5. Proposed migration phases
+## 5. Phase 1 — OIDC
 
-Mark **UNKNOWN** where we still need user decisions or deeper skill study.
+**Goal:** hosted login that a browser app can complete with PKCE, without a client secret.
 
-### Phase 0 — Bootstrap + notebook (this commit) ✅
+### Decisions locked
 
-Skills installed, `Migration.md` started, project selected, brief captured.
-
-### Phase 1 — Auth / identity on Blocks ✅ (platform config)
-
-1. ~~Enable OIDC~~ **done** (`isOidcEnabled: true`).
-2. ~~Register public OIDC client~~ **done** (`e6307866-…`) with platform +
-   `localhost:3000` `/login/callback`. Local **HTTPS** origin still a gap.
-3. Create first end user (`blocks-bootstrap` / `blocks-iam-users` first-user flow) — **pending**.
-4. Identity model: **email+password only** (locked); no social IdP.
-5. Data migration / user-id mapping: **deferred** (greenfield first).
-6. App wiring (`@seliseblocks/client`, callback route): **pending** (implementation skill).
-
-### Phase 2 — Data schema on Blocks ✅ (model + User access; row RLS gap)
-
-1. ~~Author schemas~~ **done** (`Category`, `Item`, `Reminder`, `Attachment`).
-2. Ownership: User-level schema access **done**; CreatedBy row policies **pending**.
-3. ~~Reload / list~~ **done** (`totalCount: 4`).
-4. Type mapping chosen (see §10); attachment binaries still later.
-5. ~~`blocks init`~~ **done**.
-
-### Phase 3 — App wiring (dual-client period on `dev`)
-
-1. Add Blocks client SDK / env beside existing Supabase clients (feature flag
-   or route-level switch) — **do not remove Supabase yet**.
-2. Wire login callback pages to Blocks OIDC (`blocks-iam-sso-oidc-implementation`).
-3. Port Money Map reads/writes to Data Gateway CRUD.
-4. Port attachments to Blocks storage.
-5. Keep UI (Motion/treemap) intact — UI is stack-agnostic.
-
-### Phase 4 — Reminders / background work
-
-1. Replace Edge Function + pg_cron with Blocks Workflow schedule calling Mail
-   or Notifier.
-2. **UNKNOWN:** exact event model; email provider already on Blocks vs need Mail
-   config; REMINDER_MODE log-vs-send parity.
-
-### Phase 5 — Remove Supabase clients (on `dev` only)
-
-1. Delete `@supabase/*` deps, `src/lib/supabase/*`, middleware session refresh
-   for Supabase.
-2. Stop reading `NEXT_PUBLIC_SUPABASE_*`.
-3. Leave `supabase/` migrations in git history as reference until cutover;
-   optionally archive under `docs/legacy-supabase/`.
-4. Rewrite AGENTS.md top "Stack (fixed)" section to Blocks — resolves SURFACE
-   conflict.
-
-### Phase 6 — Deploy on Blocks + cutover
-
-1. `blocks release` setup/deploy for the SirenDeck repo/branch `dev` (or a
-   release branch) — **UNKNOWN:** whether GitHub repo is already linked in
-   Blocks Release portal.
-2. Confirm OIDC redirect URIs include production domain.
-3. Dual-run: Vercel `main` stays live; Blocks `dev` domain used for soak.
-4. Cutover decision (DNS / users / data) — **user call**, not agent default.
-5. Only then consider PR `dev` → `main` (explicit ask required).
-
----
-
-## 6. Risks
-
-| Risk | Why it matters | Mitigation ideas |
-|---|---|---|
-| **Data migration** | Existing Supabase rows must land in Blocks schemas with new user ids | Export scripts; map old `user_id` → new Blocks user; dry-run on empty project first |
-| **RLS vs Blocks policies** | Semantics differ; a naive port can leak or lock out | Rewrite rules from product intent, not SQL 1:1; test isolation early |
-| **Password / session transfer** | Users likely cannot keep Supabase passwords | Re-invite / forced reset; communicate before cutover |
-| **OIDC not enabled** | `isOidcEnabled=false` + zero clients → login scaffolding would be dead | Phase 1 first, before UI work |
-| **Env / secrets** | Service role, Vault, Vercel envs must not leak into git | Use `blocks-secrets`; never commit values; rotate after dual-run |
-| **Dual-running main vs dev** | Two backends, two truths, accidental writes to prod | Strict branch rules; no shared write keys on `dev` pointing at prod Supabase if possible |
-| **Reminders gap** | Missing cron during cutover = missed renewal emails | Keep Supabase cron until Blocks workflow proven; log-mode first |
-| **AGENTS.md conflict** | Agents may follow wrong stack | This notebook + explicit phase gates; rewrite stack section at Phase 5 |
-| **Release repo link** | Deploy may fail if GitHub not connected in portal | Check `blocks release repos list` before promising deploy dates |
-| **Scope creep from other tenants** | Account can see many projects | Always `blocks use D158…`; never mutate other tenants |
-
----
-
-## 7. Decision log
-
-| When (Asia/Dhaka) | Decision |
-|---|---|
-| 2026-10-06 | Agents: cursor, codex, gemini, copilot. Skill-fronts empty. Instruction-front: GEMINI.md only. Reporting: opt-out. |
-| 2026-10-06 | First Blocks skills install (no prior stamp). Append Blocks block to existing AGENTS.md; surface stack conflict. |
-| 2026-10-06 | Branch strategy: all migration on `dev` / `origin/dev`; `main` untouched as Vercel/Supabase prod. |
-| 2026-10-06 | Project selected: SirenDeck `D158bd535e4d44ea58e5c53146704e2ab` (dev). Domain `https://dblcyi-eocee.slsblx.com`. |
-| 2026-10-06 | Auth probe: project RT recoverable → `blocks auth refresh --project`; no interactive login needed. |
-| 2026-10-06 | Brief: no OIDC clients; `isOidcEnabled=false`; zero data schemas; languages en-US / de-DE / bn-BD. |
-| 2026-10-06 | **Data:** greenfield on Blocks; Supabase migrate later. **Auth:** email+password only (no social). **App:** wire existing Next.js (no new scaffold). |
-| 2026-10-06 | Phase 1: OIDC enabled; public PKCE client `e6307866-2c00-42c3-b94d-d63c6581c9ed`; IdP `b11b7826-3596-4480-9358-5d9cb74f30c9` with non-null authorize URL. |
-| 2026-10-06 | Redirect URIs: platform domain + `http://localhost:3000` `/login/callback`. Cookie caveat documented. |
-| _(open)_ | When to rewrite AGENTS.md "Stack (fixed)" — proposed Phase 5. |
-| _(done-deferred)_ | Data migration strategy — deferred; greenfield first. |
-| _(open)_ | Whether GitHub SirenDeck is linked in Blocks Release. |
-| _(open)_ | Cutover date / DNS / whether to keep a read-only Supabase archive. |
-| 2026-10-06 | Phase 2: schemas Category/Item/Reminder/Attachment live; User-level security; Next OIDC callback wired. |
-| 2026-10-06 | Invited rudra483haque@gmail.com (`7196bfb4-…`) clouduser, PendingVerification. |
-| 2026-10-06 | CreatedBy ownership policies on all 4 schemas (READ/EDIT/DELETE Custom; WRITE User). |
-| _(open)_ | User must activate via email, then smoke-test Blocks login. |
-| _(open)_ | Local HTTPS for Next on project domain (cookie-capable). |
-
----
-
-## 8. Immediate next actions (suggested)
-
-1. ~~Phase 1 OIDC~~ **DONE** (§9).
-2. ~~Phase 2 schemas + auth wiring~~ **DONE** (§10).
-3. ~~First user invite + CreatedBy ownership~~ **DONE** (§11) — activation pending.
-4. **Activate** invite for rudra483haque@gmail.com; smoke-test login on platform HTTPS domain.
-5. **Phase 3:** flip Money Map to Blocks data helpers; seed categories; validations.
-6. Confirm Release repo linkage: `blocks release repos list --json`.
-
----
-
-
----
-
-## 9. Phase 1 status — OIDC enable + public client (2026-10-06)
-
-**Status: DONE** on project `D158bd535e4d44ea58e5c53146704e2ab`.
-
-### Decisions locked this turn (user: “do what you think best”)
-
-1. **Data:** greenfield empty on Blocks; Supabase data migrate later (or never until proven).
+1. **Data:** greenfield on Blocks; Supabase migrate later.
 2. **Auth:** email+password only via Blocks hosted login — **no social IdP**.
-3. **App:** wire this existing Next.js repo (do **not** scaffold a separate Blocks starter).
+3. **App:** wire the existing Next.js repo — do not scaffold a separate Blocks starter.
 
-### Commands run (skill path: `blocks-iam-sso-oidc-configuration` + bootstrap `flows/oidc-client.md`)
+### Commands (skill path: `blocks-iam-sso-oidc-configuration` + bootstrap `flows/oidc-client.md`)
 
-Dry-run then `--yes` (user approved Phase 1):
+Dry-run first, then `--yes` after approval:
 
 ```bash
 blocks use D158bd535e4d44ea58e5c53146704e2ab
@@ -315,202 +219,130 @@ blocks auth config save \
 
 | Check | Result |
 |---|---|
-| `isOidcEnabled` | **true** |
-| Public OIDC client | **yes** — `clientId` / `itemId` = `e6307866-2c00-42c3-b94d-d63c6581c9ed` |
+| `isOidcEnabled` | `true` |
+| Public client id | `e6307866-2c00-42c3-b94d-d63c6581c9ed` |
 | `clientType` | `public` |
-| `tokenEndpointAuthMethod` | `none` (correct for PKCE browser client) |
+| `tokenEndpointAuthMethod` | `none` (correct for browser PKCE) |
 | `requirePkce` | `true` |
 | `isAutoRedirect` | `true` |
-| Redirect URIs | `https://dblcyi-eocee.slsblx.com/login/callback`, `http://localhost:3000/login/callback` |
-| Linked IdP | `itemId` `b11b7826-3596-4480-9358-5d9cb74f30c9`, provider `sirendeck` / `blocks-oidc`, **active** |
-| IdP `authorizationUrl` | **non-null** — `https://iam.seliseblocks.com/api/oidc/authorize?tenant_id=D158…` |
-| Discovery / issuer | `https://iam.seliseblocks.com/D158bd535e4d44ea58e5c53146704e2ab` (HTTP 200 on `.well-known/openid-configuration`) |
-| Social IdP | **not** configured (by design) |
+| Redirect URIs | platform `/login/callback` + `http://localhost:3000/login/callback` |
+| Linked IdP | `b11b7826-3596-4480-9358-5d9cb74f30c9`, provider `sirendeck` / `blocks-oidc`, active |
+| Authorize URL | non-null on IAM (`…/api/oidc/authorize?tenant_id=D158…`) |
+| Discovery | `https://iam.seliseblocks.com/D158…` — `.well-known/openid-configuration` HTTP 200 |
+| Social IdP | not configured (by design) |
 
-`accountActionBaseUrl` after save reads as `https://iam.seliseblocks.com` (activation path `oidc/activate/`). Dry-run request carried the app domain we passed; post-save get shows the IAM host — treat IAM host as the live value for activation links unless login/activation proves otherwise.
+Backend expanded stored scope to `openid profile offline_access`.
 
-Backend also expanded scope to `openid profile offline_access` on the stored client/IdP.
+### Quirk: `accountActionBaseUrl`
 
-### Env template
+We passed the app domain as `--account-action-base-url`. After save, reads often showed `https://iam.seliseblocks.com` (activation path under `oidc/activate/`). Treat the IAM host as the live value for activation links unless a login/activation failure proves otherwise. Invitation mail and password setup ride this path; getting it wrong looks like “invite never works” even when SMTP is fine.
 
-`.env.example` now documents public Blocks vars for the Next.js app (no secrets):
+### Cookie / localhost caveat
+
+`http://localhost:3000` is a valid **authorize redirect** target, but Secure session cookies will not stick on plain HTTP localhost. Real browser login testing needs either:
+
+- the platform HTTPS domain after Release, or
+- local HTTPS on the project domain (adapt `blocks-frontend-local-https` ideas to Next).
+
+We chose “test on the platform domain” rather than blocking Phase 1 on local HTTPS.
+
+### Env template (public only)
+
+`.env.example` documents:
 
 - `NEXT_PUBLIC_BLOCKS_KEY`
 - `NEXT_PUBLIC_BLOCKS_API_URL=https://blocksapi.slsblx.com` (same registrable domain as `*.slsblx.com` — required for session cookies)
 - `NEXT_PUBLIC_BLOCKS_OIDC_URL` (issuer)
-- `NEXT_PUBLIC_BLOCKS_OIDC_CLIENT_ID` (public client id above)
+- `NEXT_PUBLIC_BLOCKS_OIDC_CLIENT_ID`
 - `NEXT_PUBLIC_BLOCKS_OIDC_SCOPE`
+- `NEXT_PUBLIC_AUTH_PROVIDER` / `NEXT_PUBLIC_DATA_PROVIDER`
 
-Supabase vars remain for dual-run on `main` / until cutover.
-
-### Remaining gaps (not Phase 1 blockers)
-
-1. **App wiring** — install `@seliseblocks/client`, add `/login/callback`, AuthProvider, replace Supabase auth gradually (`blocks-iam-sso-oidc-implementation` + `existing-app` flow). Not done this turn.
-2. **Local login cookies** — `http://localhost:3000` is registered for authorize redirects, but Secure session cookies will **not** stick on plain HTTP localhost. Real local login needs HTTPS on the project domain (adapt `blocks-frontend-local-https` ideas to Next, or test on `https://dblcyi-eocee.slsblx.com` once deployed).
-3. **First end user** — create via `blocks-iam-users` / bootstrap first-user flow before a real login test.
-4. **Phase 2** — model Data Gateway schemas for `categories` / `items` / `reminders` / `attachments` (greenfield).
-5. **AGENTS.md stack conflict** — still unresolved until Phase 5 rewrite.
-
-
-## Appendix — bootstrap provenance (stamp excerpt)
-
-```
-rules_repo=https://github.com/SELISEdigitalplatforms/blocks-skills.git
-rules_ref=main
-rules_commit=3e36ede8aac902b875512e5ae14e04df1b5410bb
-skills_repo=https://github.com/SELISEdigitalplatforms/blocks-cli.git
-skills_ref=main
-skills_commit=e2f3919ca12184766a30b05a242b4116551faef6
-agents=cursor codex gemini copilot
-skill_fronts=
-instruction_fronts=GEMINI.md
-reporting=opt-out
-```
-
-CLI: `@seliseblocks/cli-os` **0.8.0** (latest).
+Supabase vars remain for dual-run / `main`. No client secrets belong in the browser bundle; the OIDC client is public + PKCE.
 
 ---
 
-## 10. Phase 2 status — schemas + Next auth wiring (2026-10-06)
 
-**Status: DONE (platform schemas + incremental auth wiring).** Real end-user login still needs a first IAM user + HTTPS cookie path.
+### Identity provider registration
 
-### Decisions (locked)
-
-1. Greenfield data — no Supabase migrate yet.
-2. Email+password only (hosted Blocks login) — no social IdP.
-3. Wire existing Next.js app — do not scaffold a separate starter.
-
-### Data Gateway
-
-**Data source:** Blocks-managed storage (`blocks data config get` → `dbConnectionString: default`).
-
-**Init:** `blocks init` created `blocks.json`, `blocks/data/rules.json` (`.env.example` already existed).
-
-**Schemas pushed** (order Category → Item → Reminder → Attachment) via:
+`--register-as-identity-provider` created a Blocks IdP entry (`sirendeck` / `blocks-oidc`) tied to the public client. Without an IdP that exposes a non-null `authorizationUrl`, the app can “have OIDC enabled” and still have nowhere to send the browser. Always verify:
 
 ```bash
-blocks data validate --json
-blocks data sync --dry-run --json
-blocks data sync --yes --json
+# conceptual checks after save
+# - isOidcEnabled true
+# - oidc client active, public, requirePkce true
+# - IdP active with authorizationUrl set
+# - GET $ISSUER/.well-known/openid-configuration → 200
 ```
 
-First push failed without `collectionName` (`Collection_Name_Is_Required`). Added names matching project pattern `blx_{SchemaName}s`, then sync succeeded.
+### Scope string handling end-to-end
 
-| Schema | Collection | Schema id | App fields (excl. platform) |
-|---|---|---|---|
-| Category | `blx_Categorys` | `aceebc8f-a71d-4946-b725-49cb88ca38b4` | name, color, icon |
-| Item | `blx_Items` | `a1b87a6c-7349-4e48-93d1-24d29854feaa` | categoryId, title, notes, dueDate, status, recurrence, autoRenews, amount, currency, snoozedUntil, completedAt |
-| Reminder | `blx_Reminders` | `ec581973-f247-445d-b0cc-32533141b108` | itemId, daysBefore, sentAt |
-| Attachment | `blx_Attachments` | `d27a6302-5463-48b8-94b0-1695687d7121` | itemId, storagePath, filename, mimeType, sizeBytes |
+We asked for `openid profile`. The platform stored `openid profile offline_access`. Dockerfile `ENV` must quote the value. `.env.example` can stay unquoted as a single line assignment. The browser SDK receives whatever `NEXT_PUBLIC_BLOCKS_OIDC_SCOPE` (or the config fallback) provides — keep it aligned with the registered client to avoid authorize-time scope errors.
 
-Platform system fields (do **not** define in schema JSON): `ItemId`, `CreatedDate`, `CreatedBy`, `LastUpdatedDate`, `LastUpdatedBy`, `Language`, `OrganizationId`, `Tags`.
+### First user invite path
 
-#### Field mapping (Supabase → Blocks)
+Assignable roles on this project listed only `clouduser` — least privilege available, and the right default for an end user. Create without password; let Default SMTP deliver activation. CLI create returns `PendingVerification` until the user completes hosted activation. OIDC login before activation fails in ways that look like “client misconfigured” if you are not watching `accountState`.
+
+
+## 6. Phase 2 — schemas, access levels, field read rules
+
+### Data source and init
+
+`blocks data config get` → Blocks-managed storage (`dbConnectionString: default`).  
+`blocks init` created `blocks.json` and `blocks/data/rules.json` (`.env.example` already existed).
+
+### Schemas
+
+Pushed in order **Category → Item → Reminder → Attachment**. First sync failed without `collectionName` (`Collection_Name_Is_Required`). Added names matching the project pattern `blx_{SchemaName}s`, then sync succeeded.
+
+| Schema | Collection | Notable app fields |
+|---|---|---|
+| Category | `blx_Categorys` | name, color, icon |
+| Item | `blx_Items` | categoryId, title, notes, dueDate, status, recurrence, autoRenews, amount, currency, snoozedUntil, completedAt |
+| Reminder | `blx_Reminders` | itemId, daysBefore, sentAt |
+| Attachment | `blx_Attachments` | itemId, storagePath, filename, mimeType, sizeBytes |
+
+Platform system fields — **do not** redefine in schema JSON: `ItemId`, `CreatedDate`, `CreatedBy`, `LastUpdatedDate`, `LastUpdatedBy`, `Language`, `OrganizationId`, `Tags`.
+
+### Field mapping (Supabase → Blocks)
 
 | Supabase | Blocks |
 |---|---|
 | `id` uuid PK | `ItemId` (platform) |
-| `user_id` / RLS `auth.uid()` | `CreatedBy` (platform) + access rules |
+| `user_id` / RLS `auth.uid()` | `CreatedBy` + access rules |
 | `created_at` / `updated_at` | `CreatedDate` / `LastUpdatedDate` |
-| `categories.name/color/icon` | `Category.name/color/icon` (String) |
-| `items.category_id` | `Item.categoryId` (String id ref) |
-| `items.title/notes` | `Item.title/notes` (String) |
-| `items.due_date` date | `Item.dueDate` (DateTime; date-only semantics in app) |
-| `items.status/recurrence/currency` | String enums (same values; enforce via validation later) |
-| `items.auto_renews` | `Item.autoRenews` (Boolean) |
-| `items.amount` numeric | `Item.amount` (**String** decimal — avoid Float drift) |
-| `items.snoozed_until` / `completed_at` | `Item.snoozedUntil` / `completedAt` (DateTime) |
-| `reminders.item_id/days_before/sent_at` | `Reminder.itemId` / `daysBefore` (Int) / `sentAt` |
-| `attachments.*` | `Attachment.*` metadata; binaries → Blocks storage later |
+| `items.due_date` date | `Item.dueDate` DateTime (date-only in app UI) |
+| `items.amount` numeric | `Item.amount` **String** decimal (avoid Float drift) |
+| attachments binaries | metadata now; binaries later via Blocks storage |
 
-#### Ownership / RLS replacement
+### Access levels (schema security)
 
-- Create path auto-granted **Public** access (`makeSchemaPublic`); we immediately deployed **User** (authenticated) schema access for READ/WRITE/EDIT/DELETE on all four schemas via `blocks/data/rules.json` → `security[]` → `blocks data rules deploy`.
-- **Row-level “own rows only” (`CreatedBy == current user`)** Custom policies were **not** invented: `ruleGroup` JSON shape is not documented in installed skills/CLI. **Gap:** until Custom `CreatedBy` policies are verified (portal Data access UI or a pulled example policy), any authenticated user who can hit the gateway can read/write all rows. Treat as **Phase 2.1 security hardening** before production data.
-- App-layer filters on `CreatedBy` are a temporary defense, not a substitute.
+Create path initially got Public access via `makeSchemaPublic`. We immediately deployed **User** (authenticated) schema access for READ/WRITE/EDIT/DELETE on all four schemas.
 
-Local files: `blocks/data/schemas/*.json`, `blocks/data/rules.json`, `blocks.json`.
+That is **not** row ownership. Any authenticated user who can hit the gateway could still see everyone’s rows until CreatedBy Custom policies landed (next section).
 
-### Next.js auth wiring (incremental)
+### Field-level read rules
 
-Installed `@seliseblocks/client@0.2.0`.
-
-| File | Role |
-|---|---|
-| `src/lib/blocks/config.ts` | Reads `NEXT_PUBLIC_BLOCKS_*`; `isBlocksLoginConfigured()`; `NEXT_PUBLIC_AUTH_PROVIDER` |
-| `src/lib/blocks/client.ts` | Single `createBlocksClient` singleton |
-| `src/lib/blocks/auth.ts` | `startLogin` / `completeLogin` / `fetchSessionClaims` / `logout` |
-| `src/lib/blocks/auth-token.ts` | Optional bearer cache (cookie flow is primary) |
-| `src/lib/blocks/jwt.ts` | Minimal JWT helpers |
-| `src/components/blocks-auth-provider.tsx` | Client session status/claims |
-| `src/components/blocks-login-button.tsx` | “Continue with Blocks” → `redirectToProvider` |
-| `src/app/login/callback/page.tsx` | OIDC callback (`/login/callback`) |
-| `src/app/layout.tsx` | Wraps tree in `BlocksAuthProvider` |
-| `src/app/login/page.tsx` | Blocks button when configured; Supabase form when preferred/fallback |
-
-`.env.example` documents Blocks public vars + `NEXT_PUBLIC_AUTH_PROVIDER=blocks`.
-
-Supabase clients/routes remain for dual-run; Money Map data still Supabase/empty — not switched to Data Gateway CRUD yet.
-
-### First end user
-
-- `blocks iam users list` → **0 users**.
-- Mail **is** configured (Default SMTP) → prefer invite-without-password path.
-- **Not created this turn** — need the user’s chosen email + role confirmation.
-
-```bash
-blocks mail config list --json                    # already OK
-blocks iam roles list --json
-blocks iam roles assignable --json
-blocks iam email available "<email>" --json
-blocks iam users create --email "<email>" --roles "<role>" --dry-run --json
-# then --yes after approval
-```
-
-Portal alternative: https://os.seliseblocks.com (Users) then verify with `blocks iam users list`.
-
-### Remaining gaps
-
-1. First IAM user + real login smoke test on `https://dblcyi-eocee.slsblx.com` (or local HTTPS).
-2. Local cookie caveat: `http://localhost:3000` callback is registered but Secure cookies will not stick.
-3. Custom `CreatedBy` row policies (portal / verified ruleGroup).
-4. Field validations (title length, status enum, amount regex, sizeBytes max).
-5. Wire Money Map CRUD to `blocksClient.data.collection("Item"|…)` (Phase 3).
-6. Default category seed (was Supabase trigger on signup) → app or workflow after first login.
-7. Attachments binary storage config.
-8. AGENTS.md stack conflict still open.
+After OIDC login worked but category fields came back blank in some reads, we added **field-level** (`policyType: 1`) read security at User level for custom fields of all four schemas in `blocks/data/rules.json`. Row-level CreatedBy read/edit/delete policies stayed in place. Important constraint discovered the hard way: **row-level policies reject `fieldNames`** — field rules are a separate policy type.
 
 ---
 
-## 11. Phase 2.1 — first user + CreatedBy ownership (2026-10-06)
 
-### First end user
+### Why amount is a String
 
-```bash
-blocks iam email available "rudra483haque@gmail.com" --json   # isAvailable: true
-blocks iam roles list / assignable --json                     # only clouduser
-blocks iam users create --email "rudra483haque@gmail.com" \
-  --roles "clouduser" --dry-run --json
-blocks iam users create --email "rudra483haque@gmail.com" \
-  --roles "clouduser" --yes --json
-```
+Money Map displays and edits decimal amounts (often BDT). Mapping Supabase `numeric` to a GraphQL/JSON `Float` invites binary floating error on values users expect to be exact to cents/paisa. Storing `amount` as a **String** decimal in the Blocks schema keeps the app’s existing string-oriented validation and avoids “0.1 + 0.2” class surprises in the gateway. Enforce format with validation at write time (Phase 3), not with a float type.
 
-| Field | Value |
-|---|---|
-| User id | `7196bfb4-3a49-41e8-8626-2c124735d243` |
-| Email | `rudra483haque@gmail.com` |
-| Role | `clouduser` (only assignable / least privilege available) |
-| Password | **not** set by CLI — invite-without-password |
-| State | `PendingVerification` (`active: false`, `isVerified: false`) |
+### Collection naming
 
-**Email behavior:** project mail config **Default** is present (SMTP). Invitation/activation mail should be delivered with a one-time code. User completes setup via hosted activation (`POST /iam/v4/auth/activate` with code + password + name) — typically by opening the link in the email, which lands on `accountActionBaseUrl` / `oidc/activate/`. Then sign in via app “Continue with Blocks”.
+The first sync failed with `Collection_Name_Is_Required`. The working pattern on this tenant was `blx_{SchemaName}s` (yes, `blx_Categorys` — the platform pluralization is literal). GraphQL field names follow that shape (`getCategorys`, `insertCategory`, …). The unwrap helpers must use the **actual** field names the gateway emits, not the TypeScript schema name alone.
 
-Until activation completes, OIDC login will not succeed for this account.
+### Dual-run data helpers
 
-### CreatedBy ownership (CLI — no portal required)
+`mapCategory` / `mapItem` translate platform fields (`ItemId`, `CreatedBy`, `CreatedDate`, …) into the snake_case `CategoryRow` / `ItemRow` shapes the treemap already understands. That kept `money-map.tsx` and related UI off the critical path while the backend flipped. Cost: two naming vocabularies in one app until Phase 5 deletes the Supabase rows types’ dual meaning.
 
-Discovered `ruleGroup` shape via API validation errors (skills did not document it):
+
+## 7. CreatedBy ownership policy shape
+
+Skills did not document the `ruleGroup` JSON shape. The working shape was discovered from **API validation errors** while iterating CLI deploys:
 
 ```json
 {
@@ -525,129 +357,349 @@ Discovered `ruleGroup` shape via API validation errors (skills did not document 
 }
 ```
 
-Enums (discovered): `ConditionSource` Auth=1 SchemaField=2; `PolicyOperator` equal=0.
+Discovered enums:
+
+- `ConditionSource`: Auth = `1`, SchemaField = `2`
+- `PolicyOperator`: equal = `0`
+
 Pulled policies normalize `combinator` → `logicalOperator: 0`.
 
-**Applied to Category, Item, Reminder, Attachment:**
+### Applied matrix (all four schemas)
 
 | Operation | Access level | Policy |
 |---|---|---|
 | WRITE (create) | User / all logged-in (`1`) | none — platform stamps `CreatedBy` |
-| READ / EDIT / DELETE | Custom (`3`) | `*_own_createdby` allow when Auth.UserID == Schema.CreatedBy |
+| READ / EDIT / DELETE | Custom (`3`) | allow when Auth.`UserID` == Schema.`CreatedBy` |
 
-Verified with `blocks data rules policy get <Schema>` — 3 policies each.
-`blocks data schema aggregation` shows R/E/D=3, W=1.
+Verified with `blocks data rules policy get <Schema>` (three policies each) and schema aggregation (R/E/D = Custom, W = User). Local `blocks/data/rules.json` holds the twelve row policies plus security rows (including later field-level reads).
 
-Local: `blocks/data/rules.json` holds 12 policies + 16 security rows.
+Portal equivalent if CLI is unavailable: Data Gateway → schema → Schema Access → set View/Edit/Delete to **Custom** → rule Auth UserID equal Schema Field CreatedBy → Publish; Create stays All Logged In.
 
-**Portal alternative** (if CLI ever unavailable): Data Gateway → schema → Schema Access → set View/Edit/Delete to **Custom** → Add rule: Auth **UserID** **equal** Schema Field **CreatedBy** → Publish. Create stays **All Logged In**. Docs: https://docs.seliseblocks.com/os/data-gateway
-
-### Money Map wiring (started, not flipped)
-
-- Added `src/lib/blocks/data.ts` — `listCategories` / `listItems` / `createCategory` / `createItem` via `blocksClient.data.collection`, mappers to existing `CategoryRow`/`ItemRow`.
-- `NEXT_PUBLIC_DATA_PROVIDER=supabase` (default) — app page + server actions still Supabase.
-- Flip to `blocks` only after activation + HTTPS cookie login smoke test.
-
-### Remaining (superseded by §12)
-
-User activated; Money Map dual-path + seed shipped in §12. Still open: full Item form CRUD (not just sample create), field validations, attachments, reminders.
+Until these policies existed, app-layer filters on `CreatedBy` were only a temporary defense — not a substitute for gateway enforcement.
 
 ---
 
-## 12. Phase 2.2 — activation, Blocks app path, Money Map flip (2026-10-06)
+## 8. Next.js wiring
 
-### User state (CLI)
+Installed `@seliseblocks/client@0.2.0` and built a thin adapter layer so Money Map UI could stay mostly unchanged.
 
-```bash
-blocks iam users list --email "rudra483haque@gmail.com" --json
+### Library surface
+
+| File | Role |
+|---|---|
+| `src/lib/blocks/config.ts` | Reads `NEXT_PUBLIC_BLOCKS_*`; public fallbacks; `isBlocksLoginConfigured()`; auth provider preference |
+| `src/lib/blocks/client.ts` | Single `createBlocksClient` singleton |
+| `src/lib/blocks/auth.ts` | `startLogin` / `completeLogin` / `fetchSessionClaims` / `logout` |
+| `src/lib/blocks/auth-token.ts` | Optional bearer cache (cookie flow is primary) |
+| `src/lib/blocks/jwt.ts` | Minimal JWT helpers |
+| `src/lib/blocks/data.ts` | Category/Item list+create, GraphQL unwrap, seed, mappers to existing row types |
+
+### UI / routes
+
+| File | Role |
+|---|---|
+| `src/components/blocks-auth-provider.tsx` | Client session status/claims; unstick login CTA during session probe |
+| `src/components/blocks-login-button.tsx` | “Continue with Blocks” → `redirectToProvider` |
+| `src/app/login/callback/page.tsx` | OIDC callback |
+| `src/app/login/page.tsx` | Blocks button when configured; Supabase form when preferred/fallback |
+| `src/components/blocks-app-shell.tsx` | Client session gate for `(app)` when auth provider is Blocks |
+| `src/components/money-map/blocks-money-map-page.tsx` | Client Money Map on Data Gateway |
+| `src/components/shell/blocks-top-bar.tsx` | Signed-in email + logout |
+| `src/proxy.ts` | Skips Supabase cookie refresh when auth provider is `blocks` |
+
+### Provider flags
+
+```
+NEXT_PUBLIC_AUTH_PROVIDER=blocks|supabase
+NEXT_PUBLIC_DATA_PROVIDER=blocks|supabase
 ```
 
-| Field | Value |
+On Blocks Release images both default to `blocks`. On local dual-run you can flip either independently. Home page soft-guards missing Supabase so a Blocks-only deploy does not crash the marketing route.
+
+### Public config fallbacks
+
+Even after baking env into the Docker image, hydration could still show “Blocks login is not configured” when the client bundle lacked inlined `NEXT_PUBLIC_*` while SSR saw runtime values (React #418 mismatch). `config.ts` therefore falls back to **known public, non-secret** project defaults (same values as `.env.example`) so OIDC client id / API URL / key resolve in the browser without relying solely on Next inlining.
+
+Never put a client secret in that file. There isn’t one for this public PKCE client.
+
+---
+
+## 9. Blocks Release (kaniko, Dockerfile, pnpm)
+
+### Repo link and first setup
+
+Linked `Wrudra/SirenDeck` @ branch `dev` to `https://dblcyi-eocee.slsblx.com`. First production-shaped deploy used `blocks release setup` (not only `deploy`) with Azure West Europe `1 GiB` machine config, public `NEXT_PUBLIC_*` secrets sync, and `--register-callback`. No passwords in Release secrets.
+
+### Dockerfile evolution (failed builds → working image)
+
+**Build #1 — failed.** Kaniko: `error resolving dockerfile path`. The repo had no `Dockerfile`.  
+**Fix:** add a multi-stage Next.js Dockerfile with `output: "standalone"` plus `.dockerignore`.
+
+Early Dockerfile attempts wrestled with:
+
+| Issue | Lesson |
 |---|---|
-| User id | `7196bfb4-3a49-41e8-8626-2c124735d243` |
-| `active` | `true` |
-| `isVerified` | `true` |
-| `accountState` | `Active` |
-| Password | **never** stored in repo / Migration / env files — agent uses `SIREN_EMAIL` / `SIREN_PASS` env vars only for smoke tests |
+| npm vs pnpm | Repo lockfile is `pnpm-lock.yaml`. Use pnpm in the image (`corepack prepare pnpm@12.8.1`). |
+| Native deps | `unrs-resolver` and `sharp` need `--allow-build=…` (and `.npmrc` `dangerouslyAllowAllBuilds=true` for CI). |
+| Multi-stage complexity | Simplified to a single pnpm builder stage + slim runner. |
+| Listen port | Deploy “succeeded” but domain returned nginx **502** — container was on 3000, platform expected **8080**. Set `PORT=8080`, `HOSTNAME=0.0.0.0`, `EXPOSE 8080`. |
+| Standalone layout | CMD probes `server.js` or `sirendeck/server.js` under `.next/standalone`. |
+| Scope ENV quoting | `ENV … SCOPE="openid profile"` — unquoted multi-word scope breaks the image env. |
+| Empty pipeline `--build-arg` | Empty build-args **overrode** Dockerfile `ARG` defaults and wiped the client OIDC bundle. Bake public `NEXT_PUBLIC_*` as plain **`ENV` (no ARG)** so the pipeline cannot blank them. |
+| Assert in build | Echo/assert client id around `pnpm run build`; optionally confirm it appears under `.next/static`. |
 
-### App dual-path (this commit)
+### Current shape (conceptual)
 
-| Path | Behavior |
+```dockerfile
+FROM node:22-alpine AS builder
+# corepack pnpm, frozen lockfile, allow-build for native modules
+ENV NEXT_PUBLIC_BLOCKS_*=… \
+    NEXT_PUBLIC_BLOCKS_OIDC_SCOPE="openid profile" \
+    NEXT_PUBLIC_AUTH_PROVIDER=blocks \
+    NEXT_PUBLIC_DATA_PROVIDER=blocks
+RUN pnpm run build
+
+FROM node:22-alpine AS runner
+ENV PORT=8080 HOSTNAME=0.0.0.0
+# copy standalone + static; run as non-root nextjs user
+```
+
+`.dockerignore` excludes `node_modules`, `.next`, `.git`, `.agents`, `supabase`, markdown, and env files (keeps example). Skills stay in git for agents; they do not need to ship in the runtime image.
+
+### Release timeline (compressed)
+
+1. No Dockerfile → kaniko path error.
+2. Dockerfile + pnpm → build green; domain 502 → port 8080.
+3. Client “not configured” → ENV bake (not ARG) + config fallbacks.
+4. Quoted scope + drop brittle client-id grep that broke otherwise-good builds.
+5. OIDC login smoke test green on the platform domain.
+
+### What kaniko taught us about Next.js public env
+
+Next.js inlines `NEXT_PUBLIC_*` at **build** time into the client JS. Blocks Release can inject the same names as build-args and as runtime secrets. Those are different moments:
+
+| Moment | What the browser sees |
 |---|---|
-| `NEXT_PUBLIC_AUTH_PROVIDER=blocks` | `(app)/layout` → `BlocksAppShell` (client session gate); no Supabase `requireUser` |
-| `NEXT_PUBLIC_DATA_PROVIDER=blocks` | `/app` → client Money Map; `getOrSeedCategories` + `listItems` via Data Gateway |
-| Supabase modes | unchanged server layout + page |
+| Build with empty `--build-arg NEXT_PUBLIC_BLOCKS_OIDC_CLIENT_ID=` | Client bundle gets `""`. Login CTA thinks Blocks is unconfigured. |
+| Runtime secret present, build blank | SSR (Node) may see the secret; client still has `""` → hydration mismatch (React #418) and a confusing UI. |
+| Build with plain `ENV` baked in Dockerfile | Client bundle contains the public client id. Runtime can still override server-side reads if needed. |
 
-Also: `src/proxy.ts` skips Supabase cookie refresh when auth provider is `blocks` (Blocks-only deploys omit Supabase env). Home page soft-guards missing Supabase.
+We also tried a strict `grep` of the client id inside `.next/static` as a build gate. That caught real failures once, then failed a good build when chunk layout changed. The durable checks are: (1) do not use `ARG` defaults for values the pipeline may pass empty, (2) keep public fallbacks in `config.ts`, (3) smoke-test `/login` on the platform domain after each Release.
 
-### Seed
+### pnpm + Alpine specifics
 
-`src/lib/blocks/data.ts` → `getOrSeedCategories()` inserts the same six defaults as Supabase `categories.ts` when the user’s Category collection is empty.
+- `corepack enable && corepack prepare pnpm@12.8.1 --activate` pins the same major the repo uses.
+- `pnpm install --frozen-lockfile --allow-build=unrs-resolver --allow-build=sharp` is required on Alpine for optional native packages Next pulls in.
+- `.npmrc` with `dangerouslyAllowAllBuilds=true` is a CI hammer; prefer explicit `--allow-build` when you know the package list, but Release images that install the full app tree needed the broader allow during the unblock window.
+- `libc6-compat` on Alpine avoids a class of native module load failures.
 
-### Item CRUD (minimal)
+### Standalone output
 
-Client “Add sample item” calls `createItem` against Blocks. Full `ItemFormDialog` / server actions still Supabase-only — enough for empty/seeded map load.
+`next.config.ts` sets `output: "standalone"`. The runner image copies:
 
-### Release / domain
+- `.next/standalone` → app root (may nest as `sirendeck/server.js` depending on `package.json` name)
+- `.next/static` → `.next/static` beside it
+- `public/` → `public/`
 
-Linked repo `Wrudra/SirenDeck` @ `dev` → `https://dblcyi-eocee.slsblx.com`. First deploy uses `blocks release setup` (not `deploy`) with Azure West Europe `1 GiB` machine config id `68613e09565ac4e84078386e`, public NEXT_PUBLIC_* secrets sync (no passwords), `--register-callback`.
+The CMD shell probe exists because the nest path differed between early and later Next/standalone layouts. Prefer fixing the known path once it stabilizes; the probe is a seatbelt, not a design goal.
 
-### Smoke test (env-only credentials)
 
-Playwright/browser against `https://dblcyi-eocee.slsblx.com/login` with `SIREN_EMAIL` / `SIREN_PASS` in the shell environment only. Never write those values to disk, git, Migration, or memory.
+## 10. Login smoke test narrative
 
-### What’s live where
+Credentials for smoke tests lived **only** in shell environment variables for the browser session (`SIREN_EMAIL` / `SIREN_PASS`). They were never written to git, `Migration.md`, `.env*` committed files, agent memory, or Release secrets beyond what the platform already holds for the invited user.
 
-| Concern | Blocks domain (`dev`) | Still Supabase (`main` / dual-run) |
+Narrative (no secrets):
+
+1. Invite first end user via CLI (`blocks iam users create … --roles clouduser`) without setting a password — mail config Default SMTP delivers activation.
+2. User activates through the hosted activation flow (one-time code + password + name) until `accountState=Active`, `isVerified=true`.
+3. Open `https://dblcyi-eocee.slsblx.com/login`.
+4. Click **Continue with Blocks** → hosted IAM → redirect to `/login/callback` → land on `/app`.
+5. Top bar shows the signed-in user’s email; session cookies stick because the app and API share the `slsblx.com` registrable domain.
+
+Local HTTP localhost was **not** used as the proof path (Secure cookie caveat). Full Item form CRUD, reminders, and attachments were out of scope for this smoke — enough to prove OIDC + empty/seeded Money Map load.
+
+---
+
+
+### What we explicitly did not test in the first smoke
+
+- Password reset / forgot-password flows
+- MFA (skill installed, not configured)
+- Social IdP (out of scope by decision)
+- Concurrent sessions / logout from a second device
+- Local HTTPS cookie jar
+- Full item edit dialog against Data Gateway
+- Reminder send path
+- Attachment upload
+
+The bar for “Phase 2.2 done” was: hosted OIDC round-trip on the platform domain, session email visible, categories seed-or-list without crashing the map. Everything else is backlog, not silent success.
+
+
+## 11. GraphQL response-shape bug, re-seed, and dedupe
+
+After login worked, `/app` still misbehaved.
+
+### Symptom
+
+`getOrSeedCategories()` believed the Category collection was always empty, so it inserted the six default categories on **every** load. The map looked seeded, but the gateway accumulated duplicates (on the order of ~60 category rows for six names).
+
+### Root cause
+
+`@seliseblocks/client` `collection().list()` / `create()` return the **raw GraphQL body**:
+
+```json
+{ "data": { "getCategorys": { "items": [ … ] } }, "errors": [ … ] }
+```
+
+Early `data.ts` read `page.items` / `res.itemId` as if the SDK had already unwrapped the payload. `items` was always `undefined` → empty list → re-seed.
+
+### Fix
+
+Helpers in `src/lib/blocks/data.ts`:
+
+- `gqlPayload(res, field)` — unwrap `data.<field>`, throw on GraphQL `errors`
+- `pageItems(res, field)` — return `items[]`
+- `mutationItemId(res, field)` — read `itemId`, honor `acknowledged`
+
+`listCategories()` dedupes by normalized name (keep first) so the UI hides historical duplicates. Seeding keys off **raw row count**, not “mapped rows with non-null fields,” so a momentary field-cache lag after rules deploy (rows exist, fields read back `null`) does not trigger another seed. If raw rows exist but mapped list is empty, re-read once instead of inserting.
+
+Existing duplicate Category rows were left in the gateway (hidden by dedupe). Manual cleanup remains an open ops task.
+
+---
+
+
+### Reproduction sketch (no credentials)
+
+1. Sign in on the platform domain so Data Gateway calls carry the session cookie.
+2. In the client, call `categoriesCollection().list({ pageNo: 1, pageSize: 200 })` and log the raw return value.
+3. Observe `{ data: { getCategorys: { items: [...] } } }` — not `{ items: [...] }`.
+4. Without unwrap, `raw.items` is `undefined`; any `length === 0` check lies.
+5. After unwrap + raw-count seed guard, an empty mapped list with `raw.length > 0` means “re-read / fix field rules,” not “insert six more defaults.”
+
+### Dedupe vs delete
+
+Client-side dedupe by name is a **read path** fix for the Money Map. It does not shrink the collection, does not fix pagination totals, and does not help admin tooling that lists raw rows. Plan a one-time gateway cleanup (keep one row per name per `CreatedBy`, delete the rest), then leave dedupe as a cheap safety net.
+
+
+## 12. What is still on Supabase vs Blocks
+
+| Concern | Blocks domain (`dev` / Release) | Still Supabase (`main` / dual-run codepaths) |
 |---|---|---|
-| Hosting | Blocks Release subdomain (after setup) | Vercel |
-| Auth | Blocks OIDC (when secrets + deploy succeed) | Supabase Auth |
-| Categories / Items | Data Gateway when `DATA_PROVIDER=blocks` | Postgres + RLS |
-| Full item form / reminders / attachments | not yet | yes on `main` |
+| Hosting | Blocks Release subdomain | Vercel |
+| Auth | Blocks OIDC (public PKCE client) | Supabase Auth email+password |
+| Categories / Items (Money Map read + sample create) | Data Gateway when `DATA_PROVIDER=blocks` | Postgres + RLS |
+| Full `ItemFormDialog` / server actions | not flipped | yes |
+| Reminders / pg_cron / Edge Function | not ported | yes on `main` |
+| Attachments (binaries) | metadata schema only | Supabase Storage on `main` |
+| Secrets / Vault | Blocks secrets for Release public env | Vercel + Vault on `main` |
+| AGENTS.md “Stack (fixed)” | Blocks section appended | Top-of-file still declares Supabase+Vercel |
 
-### Release note (build #1 failed)
+Supabase clients under `src/lib/supabase/*`, migrations under `supabase/`, and `@supabase/*` dependencies remain in the tree on purpose until Phase 5.
 
-First `blocks release setup` build `d1965cc6-67b4-4a44-b7f2-b61c2c072c12` **Failed**:
-kaniko `error resolving dockerfile path` — repo had no `Dockerfile`.
-Fix: add multi-stage Next.js `Dockerfile` (`output: "standalone"`) + `.dockerignore`, then `release deploy`.
+---
 
-### Release note (deploy succeeded, domain 502)
+## 13. Open issues
 
-Build `ecdd6cb1-2b49-44cc-8cef-29b93e31d74b` **Succeeded** (commit `cdb2503`); Deploy reported successful.
-`https://dblcyi-eocee.slsblx.com` still returned nginx **502** after rollout — likely container listen port mismatch (app was on 3000). Follow-up: Dockerfile `PORT=8080` + bake public `NEXT_PUBLIC_*` defaults for Next build inlining.
+1. **Duplicate categories (~60 rows).** Re-seed loop left many copies of the six defaults. UI dedupes by name; gateway still holds extras. Needs a one-time delete/dedupe (CLI or small script), then rely on raw-count seed guard.
+2. **Filtered query blank fields.** Some list/filter reads return rows whose custom fields are momentarily or persistently blank (field-cache / field-level security interaction). Field-level User read rules were added; intermittent blank reads after rules deploy still warrant a re-read. Broader filtered-query blankness is not fully closed.
+3. **AGENTS.md SURFACE conflict.** Top “Stack (fixed)” still says Supabase+Vercel. Rewrite at Phase 5 / cutover.
+4. **Local HTTPS.** Cookie-capable local login on the project domain not set up; smoke tests use the platform HTTPS domain.
+5. **Full Item CRUD on Blocks.** Sample create only; dialog + validations still Supabase-shaped.
+6. **Attachments binaries + Reminders workflow.** Schemas exist; storage config and Workflow/Mail replacement not done.
+7. **Data migration from Supabase.** Deferred by design (greenfield first). User-id mapping and password reset communication remain open if/when we migrate rows.
+8. **Cutover.** DNS, whether to keep a read-only Supabase archive, and when (if ever) to PR `dev` → `main` — user call.
 
-### Release note (OIDC client env wipe)
+---
 
-Login page hydrated to “Blocks login is not configured” because empty
-`--build-arg NEXT_PUBLIC_*` from the pipeline overrode Dockerfile ARG defaults,
-so the client JS bundle had blank OIDC values (SSR still saw runtime secrets → React #418).
-Fix: bake public `NEXT_PUBLIC_*` as plain `ENV` (no ARG) and assert client id appears in `.next/static` during image build.
+## 14. Decision log
 
-### Release note (client config fallbacks)
+| When (Asia/Dhaka) | Decision |
+|---|---|
+| 2026-10-06 | Agents: cursor, codex, gemini, copilot. Skill-fronts empty. Instruction-front: `GEMINI.md`. Reporting: opt-out. |
+| 2026-10-06 | First Blocks skills install. Append Blocks block to existing `AGENTS.md`; leave SURFACE stack conflict unresolved. |
+| 2026-10-06 | Branch strategy: all migration on `dev` / `origin/dev`; `main` untouched. |
+| 2026-10-06 | Project: SirenDeck `D158bd535e4d44ea58e5c53146704e2ab` (dev). Domain `https://dblcyi-eocee.slsblx.com`. |
+| 2026-10-06 | Auth probe: project RT recoverable → `blocks auth refresh --project`. |
+| 2026-10-06 | **Data:** greenfield on Blocks. **Auth:** email+password only (no social). **App:** wire existing Next.js. |
+| 2026-10-06 | Phase 1: OIDC enabled; public PKCE client `e6307866-…`; IdP linked with non-null authorize URL. |
+| 2026-10-06 | Redirect URIs: platform + `localhost:3000` `/login/callback`. Cookie caveat documented. |
+| 2026-10-06 | Phase 2: schemas Category/Item/Reminder/Attachment; User-level security; Next OIDC callback wired. |
+| 2026-10-06 | Invited first clouduser; CreatedBy ownership policies on all four schemas. |
+| 2026-10-06 | Money Map dual-path + category seed; Release linked to `dev`. |
+| 2026-10-06 | Dockerfile/kaniko iteration: pnpm, port 8080, ENV bake, scope quoting, config fallbacks. |
+| 2026-10-06 | OIDC smoke test green; GraphQL unwrap + seed guard + category name dedupe. |
+| _(open)_ | When to rewrite AGENTS.md “Stack (fixed)” — proposed Phase 5. |
+| _(open)_ | Supabase data migration strategy / cutover date / DNS. |
+| _(open)_ | Duplicate category cleanup in gateway. |
 
-Even with Dockerfile ENV bake, hydrated login still showed “not configured”
-(SSR had runtime secrets → React #418). Added public non-secret fallbacks in
-`src/lib/blocks/config.ts` so OIDC client id / API URL / key resolve in the
-browser without relying on Next inlining.
+---
 
+## 15. Recommended next phases
 
-### Release note (live: OIDC login works; Data Gateway unwrap fix)
+### Phase 3 — finish app wiring on Blocks
 
-Build `89e3108a-a6de-406f-a521-db8e95c67d80` (commit `e490a29`) deployed to
-`https://dblcyi-eocee.slsblx.com`. Hosted OIDC smoke test (HTTPS domain, env-only
-credentials) succeeded: `/login` → Continue with Blocks → IAM → `/login/callback` → `/app`
-with the signed-in user's email in the header.
+1. Port full Item form (create/edit/snooze/complete) to Data Gateway helpers; keep UI components, swap data layer.
+2. Add field validations (title length, status/recurrence enums, amount regex, attachment size).
+3. One-time dedupe/delete of duplicate Category rows; confirm seed guard with a clean collection.
+4. Investigate filtered-query blank fields with a minimal reproduction against `collection().list` filters.
 
-Found on `/app`: the SDK's `collection().list()/create()` return the **raw GraphQL body**
-(`{ data: { getCategorys: { items } } }`), but `data.ts` read `page.items` / `res.itemId`.
-Result: the category list always looked empty, so `getOrSeedCategories()` re-inserted the six
-defaults on every load (duplicates in `Category`). Fix: `gqlPayload`/`pageItems`/`mutationItemId`
-helpers unwrap `data.<field>`, surface GraphQL `errors`, and `listCategories()` dedupes by name.
-Seeding now keys off the raw row count, so rows whose fields momentarily read back `null`
-(gateway field cache lag right after a rules deploy) never trigger a re-seed.
-Existing duplicate Category rows are left in place (hidden by the dedupe); clean them up
-manually if wanted.
+### Phase 4 — reminders and attachments
 
-Rules: added field-level (`policyType: 1`) read security at `User` level for custom fields of all
-four schemas in `blocks/data/rules.json`. Row-level `CreatedBy` read/edit/delete policies are
-unchanged, so rows stay owner-only. (Row-level policies reject `fieldNames`.)
+1. Replace Edge Function + `pg_cron` with Blocks Workflow schedule → Mail/Notifier.
+2. Configure Blocks storage; port attachment upload/download; keep metadata schema in sync.
+3. Run reminders in log-mode first; keep Supabase cron on `main` until Blocks path is proven.
+
+### Phase 5 — remove Supabase from `dev`
+
+1. Drop `@supabase/*` deps and `src/lib/supabase/*` from the Blocks-primary tree (or isolate behind a legacy package if dual-run must continue longer).
+2. Stop reading `NEXT_PUBLIC_SUPABASE_*` on Blocks Release.
+3. Archive `supabase/migrations` under `docs/legacy-supabase/` or leave as git history reference.
+4. Rewrite AGENTS.md top “Stack (fixed)” to Blocks — resolves SURFACE conflict.
+
+### Phase 6 — soak and cutover
+
+1. Soak on `https://dblcyi-eocee.slsblx.com` with real usage.
+2. If migrating existing Supabase users/rows: export, map ids, forced password reset communication.
+3. Cutover decision (DNS / which system of record) — explicit user ask.
+4. Only then consider PR `dev` → `main`.
+
+---
+
+## 16. Lessons learned
+
+1. **Branch isolation is the safety net.** Keeping `main` on Vercel+Supabase meant every Release failure was embarrassing, not user-facing.
+2. **OIDC “enabled” is not enough.** You need a public PKCE client, redirect URIs that match the real callback route, an IdP with a non-null authorize URL, and cookie domain alignment (`blocksapi.slsblx.com` + app on `*.slsblx.com`).
+3. **`accountActionBaseUrl` lies politely.** What you pass and what `get` returns can differ; activation links follow the live IAM value.
+4. **Localhost redirects ≠ local sessions.** Authorize redirects on `http://localhost:3000` do not imply Secure cookies will stick. Prove login on HTTPS first.
+5. **RLS intuition does not port.** Schema User access ≠ row ownership. Custom CreatedBy policies need a real `ruleGroup` shape; inventing SQL-shaped rules fails closed or open in surprising ways. API errors were more useful than the skill docs here.
+6. **Field-level vs row-level policies are different types.** Row policies reject `fieldNames`. Blank custom fields after a rules deploy may be cache lag — count raw rows before re-seeding.
+7. **Believe the SDK’s actual return shape.** Assuming an unwrapped `{ items }` when the client returns a GraphQL envelope silently creates infinite seed loops.
+8. **Kaniko is literal.** No Dockerfile means an immediate fail. Wrong listen port means a green deploy and a 502. Empty `--build-arg` values can wipe `ARG` defaults — prefer plain `ENV` for public build-time Next config.
+9. **pnpm in Docker must match the lockfile.** Fighting npm in CI when the repo is pnpm-only wastes builds; allow native builds explicitly.
+10. **Quote multi-word ENV values.** `openid profile` without quotes is two tokens to the image.
+11. **Public fallbacks are a pragmatic client-bundle seatbelt.** They are not a substitute for correct Release env, but they prevent “not configured” hydration when SSR and client disagree.
+12. **Dual-provider flags beat a big-bang cut.** `AUTH_PROVIDER` / `DATA_PROVIDER` let us ship OIDC and Money Map reads without deleting Supabase codepaths on day one.
+13. **SURFACE conflicts in AGENTS.md should stay visible.** Overwriting “Stack (fixed)” early would paper over the fact that `main` still runs Supabase.
+14. **Never commit smoke credentials or check screenshots.** Env-only passwords; `.sirendeck-check/` and `.playwright-mcp/` stay gitignored.
+15. **Skills are necessary but incomplete.** Bootstrap, OIDC config, and Release skills got us moving; CreatedBy `ruleGroup` and GraphQL unwrap details were earned in production traffic on the `dev` domain.
+
+---
+
+## 17. Appendix — bootstrap provenance
+
+```
+rules_repo=https://github.com/SELISEdigitalplatforms/blocks-skills.git
+rules_ref=main
+rules_commit=3e36ede8aac902b875512e5ae14e04df1b5410bb
+skills_repo=https://github.com/SELISEdigitalplatforms/blocks-cli.git
+skills_ref=main
+skills_commit=e2f3919ca12184766a30b05a242b4116551faef6
+agents=cursor codex gemini copilot
+skill_fronts=
+instruction_fronts=GEMINI.md
+reporting=opt-out
+```
+
+CLI: `@seliseblocks/cli-os` **0.8.0**.
+
+Repo paths that matter for this post: `Migration.md` (this file), `Dockerfile`, `.dockerignore`, `.npmrc`, `blocks.json`, `blocks/data/schemas/*`, `blocks/data/rules.json`, `src/lib/blocks/*`, `src/components/blocks-*.tsx`, `src/app/login/callback/page.tsx`, `.agents/skills/`, Blocks section at the end of `AGENTS.md`.

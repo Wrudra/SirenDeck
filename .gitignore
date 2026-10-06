@@ -36,9 +36,23 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# local agent / browser check artifacts (never commit)
 .playwright-mcp/
+.sirendeck-check/
+.impeccable/
+.kilo/
+
+# accidental npm lockfile (this repo is pnpm-only)
+package-lock.json
+yarn.lock
+
+# scratch / tmp scripts that sometimes land in-repo during migrations
+/tmp/
+*.tmp
+*-debug.json
+release-debug*.json
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-.impeccable/
