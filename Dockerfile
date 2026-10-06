@@ -3,8 +3,8 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
 RUN corepack enable && corepack prepare pnpm@12.8.1 --activate
-COPY package.json pnpm-lock.yaml .npmrc ./
-RUN pnpm install --frozen-lockfile
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+RUN pnpm install --frozen-lockfile --allow-build=unrs-resolver --allow-build=sharp
 COPY . .
 ARG NEXT_PUBLIC_BLOCKS_KEY
 ARG NEXT_PUBLIC_BLOCKS_API_URL
