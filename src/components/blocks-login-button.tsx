@@ -28,7 +28,7 @@ export function BlocksLoginButton({ returnTo = "/app" }: { returnTo?: string }) 
     <div className="flex w-full flex-col gap-2">
       <button
         type="button"
-        disabled={pending || status === "loading"}
+        disabled={pending}
         onClick={async () => {
           setPending(true);
           setError(null);

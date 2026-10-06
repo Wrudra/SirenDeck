@@ -39,7 +39,11 @@ export function BlocksAuthProvider({ children }: { children: React.ReactNode }) 
       return;
     }
     try {
-      const next = await fetchSessionClaims();
+      // userInfo can hang on cold cookie miss; bound wait so login CTA is usable
+      const next = await Promise.race([
+        fetchSessionClaims(),
+        new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 8000)),
+      ]);
       if (next) {
         setClaims(next);
         setStatus("authenticated");
