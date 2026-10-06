@@ -605,3 +605,9 @@ Playwright/browser against `https://dblcyi-eocee.slsblx.com/login` with `SIREN_E
 | Categories / Items | Data Gateway when `DATA_PROVIDER=blocks` | Postgres + RLS |
 | Full item form / reminders / attachments | not yet | yes on `main` |
 
+### Release note (build #1 failed)
+
+First `blocks release setup` build `d1965cc6-67b4-4a44-b7f2-b61c2c072c12` **Failed**:
+kaniko `error resolving dockerfile path` — repo had no `Dockerfile`.
+Fix: add multi-stage Next.js `Dockerfile` (`output: "standalone"`) + `.dockerignore`, then `release deploy`.
+
