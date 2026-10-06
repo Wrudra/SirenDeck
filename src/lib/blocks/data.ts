@@ -120,9 +120,13 @@ export function itemsCollection() {
   });
 }
 
-export async function listCategories(): Promise<CategoryRow[]> {
+async function fetchCategoryRows(): Promise<BlocksRecord[]> {
   const page = await categoriesCollection().list({ pageNo: 1, pageSize: 200 });
-  const rows = pageItems(page, "getCategorys").map(mapCategory).filter((c) => c.id && c.name);
+  return pageItems(page, "getCategorys");
+}
+
+function toCategoryList(raw: BlocksRecord[]): CategoryRow[] {
+  const rows = raw.map(mapCategory).filter((c) => c.id && c.name);
   // Dedupe by name (keep first): earlier builds re-seeded on every load.
   const seen = new Set<string>();
   const unique = rows.filter((c) => {
@@ -132,6 +136,10 @@ export async function listCategories(): Promise<CategoryRow[]> {
     return true;
   });
   return unique.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function listCategories(): Promise<CategoryRow[]> {
+  return toCategoryList(await fetchCategoryRows());
 }
 
 export async function listItems(): Promise<ItemRow[]> {
@@ -154,8 +162,15 @@ const DEFAULT_CATEGORIES = [
  * Ownership is enforced by CreatedBy policies; empty-then-insert race is OK for v1.
  */
 export async function getOrSeedCategories(): Promise<CategoryRow[]> {
-  const existing = await listCategories();
-  if (existing.length > 0) return existing;
+  const raw = await fetchCategoryRows();
+  // Seed only when the collection truly has no rows for this user. A row whose
+  // fields read back null (gateway field-cache lag) still counts as existing.
+  if (raw.length > 0) {
+    const existing = toCategoryList(raw);
+    if (existing.length > 0) return existing;
+    // Rows exist but fields came back empty: re-read once instead of re-seeding.
+    return listCategories();
+  }
   for (const c of DEFAULT_CATEGORIES) {
     await categoriesCollection().create({ name: c.name, color: c.color, icon: c.icon });
   }

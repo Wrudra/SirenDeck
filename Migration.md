@@ -643,6 +643,8 @@ Found on `/app`: the SDK's `collection().list()/create()` return the **raw Graph
 Result: the category list always looked empty, so `getOrSeedCategories()` re-inserted the six
 defaults on every load (duplicates in `Category`). Fix: `gqlPayload`/`pageItems`/`mutationItemId`
 helpers unwrap `data.<field>`, surface GraphQL `errors`, and `listCategories()` dedupes by name.
+Seeding now keys off the raw row count, so rows whose fields momentarily read back `null`
+(gateway field cache lag right after a rules deploy) never trigger a re-seed.
 Existing duplicate Category rows are left in place (hidden by the dedupe); clean them up
 manually if wanted.
 
