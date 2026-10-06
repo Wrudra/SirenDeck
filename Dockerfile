@@ -7,28 +7,24 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 RUN pnpm install --frozen-lockfile --allow-build=unrs-resolver --allow-build=sharp
 COPY . .
 
-# Public NEXT_PUBLIC_* defaults (also overridable via build-args / release secrets).
-# These are not secrets — same values as .env.example.
-ARG NEXT_PUBLIC_BLOCKS_KEY=D158bd535e4d44ea58e5c53146704e2ab
-ARG NEXT_PUBLIC_BLOCKS_API_URL=https://blocksapi.slsblx.com
-ARG NEXT_PUBLIC_BLOCKS_OIDC_URL=https://iam.seliseblocks.com/D158bd535e4d44ea58e5c53146704e2ab
-ARG NEXT_PUBLIC_BLOCKS_OIDC_CLIENT_ID=e6307866-2c00-42c3-b94d-d63c6581c9ed
-ARG NEXT_PUBLIC_BLOCKS_OIDC_SCOPE=openid profile
-ARG NEXT_PUBLIC_BLOCKS_APP_DOMAIN=https://dblcyi-eocee.slsblx.com
-ARG NEXT_PUBLIC_AUTH_PROVIDER=blocks
-ARG NEXT_PUBLIC_DATA_PROVIDER=blocks
-ENV NEXT_PUBLIC_BLOCKS_KEY=$NEXT_PUBLIC_BLOCKS_KEY \
-    NEXT_PUBLIC_BLOCKS_API_URL=$NEXT_PUBLIC_BLOCKS_API_URL \
-    NEXT_PUBLIC_BLOCKS_OIDC_URL=$NEXT_PUBLIC_BLOCKS_OIDC_URL \
-    NEXT_PUBLIC_BLOCKS_OIDC_CLIENT_ID=$NEXT_PUBLIC_BLOCKS_OIDC_CLIENT_ID \
-    NEXT_PUBLIC_BLOCKS_OIDC_SCOPE=$NEXT_PUBLIC_BLOCKS_OIDC_SCOPE \
-    NEXT_PUBLIC_BLOCKS_APP_DOMAIN=$NEXT_PUBLIC_BLOCKS_APP_DOMAIN \
-    NEXT_PUBLIC_AUTH_PROVIDER=$NEXT_PUBLIC_AUTH_PROVIDER \
-    NEXT_PUBLIC_DATA_PROVIDER=$NEXT_PUBLIC_DATA_PROVIDER \
+# IMPORTANT: bake public NEXT_PUBLIC_* as plain ENV (not ARG).
+# Blocks may pass empty --build-arg values that would wipe ARG defaults and
+# leave the client bundle without OIDC config (hydration shows "not configured").
+# These values are public (same as .env.example) — not secrets.
+ENV NEXT_PUBLIC_BLOCKS_KEY=D158bd535e4d44ea58e5c53146704e2ab \
+    NEXT_PUBLIC_BLOCKS_API_URL=https://blocksapi.slsblx.com \
+    NEXT_PUBLIC_BLOCKS_OIDC_URL=https://iam.seliseblocks.com/D158bd535e4d44ea58e5c53146704e2ab \
+    NEXT_PUBLIC_BLOCKS_OIDC_CLIENT_ID=e6307866-2c00-42c3-b94d-d63c6581c9ed \
+    NEXT_PUBLIC_BLOCKS_OIDC_SCOPE="openid profile" \
+    NEXT_PUBLIC_BLOCKS_APP_DOMAIN=https://dblcyi-eocee.slsblx.com \
+    NEXT_PUBLIC_AUTH_PROVIDER=blocks \
+    NEXT_PUBLIC_DATA_PROVIDER=blocks \
     NEXT_TELEMETRY_DISABLED=1
-RUN pnpm run build \
+RUN echo "OIDC client id for build: $NEXT_PUBLIC_BLOCKS_OIDC_CLIENT_ID" \
+ && pnpm run build \
  && ls -la .next/standalone \
- && (test -f .next/standalone/server.js || test -f .next/standalone/sirendeck/server.js)
+ && (test -f .next/standalone/server.js || test -f .next/standalone/sirendeck/server.js) \
+ && grep -R "e6307866-2c00-42c3-b94d-d63c6581c9ed" .next/static >/dev/null
 
 FROM node:22-alpine AS runner
 WORKDIR /app
@@ -36,6 +32,15 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=8080
 ENV HOSTNAME=0.0.0.0
+# Runtime also needs them for any SSR that reads process.env
+ENV NEXT_PUBLIC_BLOCKS_KEY=D158bd535e4d44ea58e5c53146704e2ab \
+    NEXT_PUBLIC_BLOCKS_API_URL=https://blocksapi.slsblx.com \
+    NEXT_PUBLIC_BLOCKS_OIDC_URL=https://iam.seliseblocks.com/D158bd535e4d44ea58e5c53146704e2ab \
+    NEXT_PUBLIC_BLOCKS_OIDC_CLIENT_ID=e6307866-2c00-42c3-b94d-d63c6581c9ed \
+    NEXT_PUBLIC_BLOCKS_OIDC_SCOPE="openid profile" \
+    NEXT_PUBLIC_BLOCKS_APP_DOMAIN=https://dblcyi-eocee.slsblx.com \
+    NEXT_PUBLIC_AUTH_PROVIDER=blocks \
+    NEXT_PUBLIC_DATA_PROVIDER=blocks
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

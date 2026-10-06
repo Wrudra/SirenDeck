@@ -616,3 +616,10 @@ Fix: add multi-stage Next.js `Dockerfile` (`output: "standalone"`) + `.dockerign
 Build `ecdd6cb1-2b49-44cc-8cef-29b93e31d74b` **Succeeded** (commit `cdb2503`); Deploy reported successful.
 `https://dblcyi-eocee.slsblx.com` still returned nginx **502** after rollout — likely container listen port mismatch (app was on 3000). Follow-up: Dockerfile `PORT=8080` + bake public `NEXT_PUBLIC_*` defaults for Next build inlining.
 
+### Release note (OIDC client env wipe)
+
+Login page hydrated to “Blocks login is not configured” because empty
+`--build-arg NEXT_PUBLIC_*` from the pipeline overrode Dockerfile ARG defaults,
+so the client JS bundle had blank OIDC values (SSR still saw runtime secrets → React #418).
+Fix: bake public `NEXT_PUBLIC_*` as plain `ENV` (no ARG) and assert client id appears in `.next/static` during image build.
+
