@@ -104,6 +104,29 @@ export async function listItems(): Promise<ItemRow[]> {
   return items.map(mapItem);
 }
 
+/** Neutral starter categories (parity with src/lib/categories.ts). */
+const DEFAULT_CATEGORIES = [
+  { name: "Subscriptions", color: "#22d3ee", icon: "repeat" },
+  { name: "Insurance", color: "#14b8a6", icon: "shield" },
+  { name: "Domains & SSL", color: "#8b5cf6", icon: "globe" },
+  { name: "Bills", color: "#f59e0b", icon: "receipt" },
+  { name: "Licenses", color: "#84cc16", icon: "badge-check" },
+  { name: "Travel documents", color: "#f43f5e", icon: "plane" },
+] as const;
+
+/**
+ * Returns categories, seeding defaults on first empty load for this user.
+ * Ownership is enforced by CreatedBy policies; empty-then-insert race is OK for v1.
+ */
+export async function getOrSeedCategories(): Promise<CategoryRow[]> {
+  const existing = await listCategories();
+  if (existing.length > 0) return existing;
+  for (const c of DEFAULT_CATEGORIES) {
+    await createCategory({ name: c.name, color: c.color, icon: c.icon });
+  }
+  return listCategories();
+}
+
 export async function createCategory(input: {
   name: string;
   color: string;
@@ -151,7 +174,7 @@ export async function createItem(input: {
   return str((res as { itemId?: string }).itemId);
 }
 
-/** Data backend preference during dual-run. Default remains supabase until Blocks session works. */
+/** Data backend preference during dual-run. Set NEXT_PUBLIC_DATA_PROVIDER=blocks on Blocks deploys. */
 export function getDataProviderPreference(): "blocks" | "supabase" {
   const raw = (process.env.NEXT_PUBLIC_DATA_PROVIDER ?? "").trim().toLowerCase();
   if (raw === "blocks") return "blocks";

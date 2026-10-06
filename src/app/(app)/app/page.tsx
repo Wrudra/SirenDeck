@@ -2,11 +2,14 @@ import Link from "next/link";
 
 import { ItemFormDialog } from "@/components/items/item-form-dialog";
 import { ItemList } from "@/components/items/item-list";
+import { BlocksAppPageClient } from "@/components/money-map/blocks-app-page-client";
 import { MoneyMap } from "@/components/money-map/money-map";
 import { FilterBar } from "@/components/shell/filter-bar";
 import { ViewTabs } from "@/components/shell/view-tabs";
 import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getAuthProviderPreference } from "@/lib/blocks/config";
+import { getDataProviderPreference } from "@/lib/blocks/data";
 import { getOrSeedCategories } from "@/lib/categories";
 import { applyFilters, hasActiveFilters, parseFilters } from "@/lib/filters";
 import { requireUser } from "@/lib/supabase/require-user";
@@ -19,11 +22,18 @@ export default async function AppPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  // Blocks auth + data: client page (session cookie is browser-only).
+  if (
+    getAuthProviderPreference() === "blocks" ||
+    getDataProviderPreference() === "blocks"
+  ) {
+    return <BlocksAppPageClient />;
+  }
+
   const { user, supabase } = await requireUser();
   const params = await searchParams;
   const filters = parseFilters(params);
   const view = typeof params.view === "string" ? params.view : null;
-  // No explicit view: CSS decides · board list under md, Money Map at md+.
   const isList = view === "list";
   const isMap = view === "map";
 
@@ -72,8 +82,6 @@ export default async function AppPage({
       ) : isMap ? (
         <MoneyMap items={items} categories={categories} />
       ) : (
-        /* No explicit view: CSS decides · board list under md, Money Map at md+.
-           Both render; each is display:none outside its breakpoint. */
         <>
           <div className="flex min-h-0 flex-1 flex-col md:hidden">
             <ItemList items={items} categories={categories} />
@@ -87,7 +95,6 @@ export default async function AppPage({
   );
 }
 
-/** Keeps the active view when clearing filters — no MAP↔LEDGER jump. */
 function ZeroResults({ query, view }: { query: string; view: string | null }) {
   const href =
     view === "map" || view === "list" ? `/app?view=${view}` : "/app";

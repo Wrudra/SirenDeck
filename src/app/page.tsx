@@ -60,12 +60,16 @@ const FAQ = [
 ];
 
 export default async function Home() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user) redirect("/app");
+  // Blocks-only deploys omit Supabase env; skip legacy session redirect quietly.
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) redirect("/app");
+  } catch {
+    // Missing Supabase env — show marketing page.
+  }
 
   return (
     <div className="min-h-dvh bg-bg text-ink">

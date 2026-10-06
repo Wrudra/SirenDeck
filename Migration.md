@@ -548,11 +548,60 @@ Local: `blocks/data/rules.json` holds 12 policies + 16 security rows.
 - `NEXT_PUBLIC_DATA_PROVIDER=supabase` (default) — app page + server actions still Supabase.
 - Flip to `blocks` only after activation + HTTPS cookie login smoke test.
 
-### Remaining
+### Remaining (superseded by §12)
 
-1. Activate `rudra483haque@gmail.com` from invite email; smoke-test Blocks login on `https://dblcyi-eocee.slsblx.com`.
-2. Seed default categories via Blocks after first login.
-3. Flip Money Map reads/writes to Blocks data helpers / dual-run flag.
-4. Field validations (title length, enums, amount).
-5. Attachments storage + reminders workflow.
+User activated; Money Map dual-path + seed shipped in §12. Still open: full Item form CRUD (not just sample create), field validations, attachments, reminders.
+
+---
+
+## 12. Phase 2.2 — activation, Blocks app path, Money Map flip (2026-10-06)
+
+### User state (CLI)
+
+```bash
+blocks iam users list --email "rudra483haque@gmail.com" --json
+```
+
+| Field | Value |
+|---|---|
+| User id | `7196bfb4-3a49-41e8-8626-2c124735d243` |
+| `active` | `true` |
+| `isVerified` | `true` |
+| `accountState` | `Active` |
+| Password | **never** stored in repo / Migration / env files — agent uses `SIREN_EMAIL` / `SIREN_PASS` env vars only for smoke tests |
+
+### App dual-path (this commit)
+
+| Path | Behavior |
+|---|---|
+| `NEXT_PUBLIC_AUTH_PROVIDER=blocks` | `(app)/layout` → `BlocksAppShell` (client session gate); no Supabase `requireUser` |
+| `NEXT_PUBLIC_DATA_PROVIDER=blocks` | `/app` → client Money Map; `getOrSeedCategories` + `listItems` via Data Gateway |
+| Supabase modes | unchanged server layout + page |
+
+Also: `src/proxy.ts` skips Supabase cookie refresh when auth provider is `blocks` (Blocks-only deploys omit Supabase env). Home page soft-guards missing Supabase.
+
+### Seed
+
+`src/lib/blocks/data.ts` → `getOrSeedCategories()` inserts the same six defaults as Supabase `categories.ts` when the user’s Category collection is empty.
+
+### Item CRUD (minimal)
+
+Client “Add sample item” calls `createItem` against Blocks. Full `ItemFormDialog` / server actions still Supabase-only — enough for empty/seeded map load.
+
+### Release / domain
+
+Linked repo `Wrudra/SirenDeck` @ `dev` → `https://dblcyi-eocee.slsblx.com`. First deploy uses `blocks release setup` (not `deploy`) with Azure West Europe `1 GiB` machine config id `68613e09565ac4e84078386e`, public NEXT_PUBLIC_* secrets sync (no passwords), `--register-callback`.
+
+### Smoke test (env-only credentials)
+
+Playwright/browser against `https://dblcyi-eocee.slsblx.com/login` with `SIREN_EMAIL` / `SIREN_PASS` in the shell environment only. Never write those values to disk, git, Migration, or memory.
+
+### What’s live where
+
+| Concern | Blocks domain (`dev`) | Still Supabase (`main` / dual-run) |
+|---|---|---|
+| Hosting | Blocks Release subdomain (after setup) | Vercel |
+| Auth | Blocks OIDC (when secrets + deploy succeed) | Supabase Auth |
+| Categories / Items | Data Gateway when `DATA_PROVIDER=blocks` | Postgres + RLS |
+| Full item form / reminders / attachments | not yet | yes on `main` |
 

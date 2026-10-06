@@ -1,6 +1,7 @@
+import { BlocksAppShell } from "@/components/blocks-app-shell";
 import { TopBar } from "@/components/shell/top-bar";
 import { Toaster } from "@/components/ui/sonner";
-
+import { getAuthProviderPreference } from "@/lib/blocks/config";
 import { requireUser } from "@/lib/supabase/require-user";
 
 export default async function AppLayout({
@@ -8,6 +9,10 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
+  if (getAuthProviderPreference() === "blocks") {
+    return <BlocksAppShell>{children}</BlocksAppShell>;
+  }
+
   const { user } = await requireUser();
   const email = user.email ?? "account";
 
