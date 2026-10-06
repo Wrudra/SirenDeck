@@ -1,15 +1,10 @@
-# SirenDeck — Blocks Release / kaniko image (pnpm)
-FROM node:22-alpine AS deps
-WORKDIR /app
-RUN apk add --no-cache libc6-compat
-RUN corepack enable && corepack prepare pnpm@latest --activate
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
-
+# SirenDeck — Blocks Release / kaniko (pnpm + Next standalone)
 FROM node:22-alpine AS builder
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@latest --activate
-COPY --from=deps /app/node_modules ./node_modules
+RUN apk add --no-cache libc6-compat
+RUN corepack enable && corepack prepare pnpm@9 --activate
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY . .
 ARG NEXT_PUBLIC_BLOCKS_KEY
 ARG NEXT_PUBLIC_BLOCKS_API_URL
