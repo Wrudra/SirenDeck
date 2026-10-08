@@ -35,6 +35,8 @@ const RECURRENCE_LABELS: Record<string, string> = {
   yearly: "Yearly",
 };
 
+const RENEW_PERIODS = RECURRENCES.filter((r) => r !== "none");
+
 const fieldCls =
   "rounded-[var(--radius-control)] border-rule-input bg-surface shadow-none focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-ink/50";
 
@@ -78,6 +80,10 @@ export function ItemFormDialog({
   );
   const formRef = useRef<HTMLFormElement>(null);
   const uid = useId();
+  const [autoRenews, setAutoRenews] = useState(item?.autoRenews ?? false);
+  const [period, setPeriod] = useState(
+    item?.recurrence && item.recurrence !== "none" ? item.recurrence : "monthly",
+  );
 
   // Wrap the server action so success handling (close + toast) happens in the
   // same async flow · avoids a setState-in-effect cascade.
@@ -97,8 +103,11 @@ export function ItemFormDialog({
 
   // Reset the form whenever the dialog re-opens (Add mode).
   useEffect(() => {
-    if (open && !isEdit) formRef.current?.reset();
-  }, [open, isEdit]);
+    if (!open) return;
+    setAutoRenews(item?.autoRenews ?? false);
+    setPeriod(item?.recurrence && item.recurrence !== "none" ? item.recurrence : "monthly");
+    if (!isEdit) formRef.current?.reset();
+  }, [open, isEdit, item?.id, item?.autoRenews, item?.recurrence]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -208,7 +217,7 @@ export function ItemFormDialog({
                   </p>
                 ) : (
                   <p id={`${uid}-amount-hint`} className="text-xs text-ink-muted">
-                    Optional. Unpriced items wait on the shelf.
+                    Optional. A blank amount still appears on the map.
                   </p>
                 )}
               </div>
@@ -229,22 +238,47 @@ export function ItemFormDialog({
               </div>
             </div>
 
-            <div className="grid gap-1.5">
-              <Label htmlFor={`${uid}-recurrence`} className="ledger-cap text-[10px] text-ink-muted">
-                Recurrence
-              </Label>
-              <Select name="recurrence" defaultValue={item?.recurrence ?? "none"}>
-                <SelectTrigger id={`${uid}-recurrence`} className={fieldCls}>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-[var(--radius-control)] border-rule">
-                  {RECURRENCES.map((r) => (
-                    <SelectItem key={r} value={r}>{RECURRENCE_LABELS[r]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {state.fieldErrors?.recurrence && (
-                <p className="text-xs text-ink">{state.fieldErrors.recurrence}</p>
+            <div className="grid gap-2">
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="autoRenews"
+                  checked={autoRenews}
+                  onChange={(event) => setAutoRenews(event.target.checked)}
+                  className="size-3.5 rounded-[2px] border border-rule-input accent-[var(--accent)]"
+                />
+                Auto-renews
+              </label>
+              {autoRenews ? (
+                <div className="grid gap-1.5">
+                  <Label htmlFor={`${uid}-recurrence`} className="ledger-cap text-[10px] text-ink-muted">
+                    Recurrence
+                  </Label>
+                  <input type="hidden" name="recurrence" value={period} />
+                  <Select value={period} onValueChange={setPeriod}>
+                    <SelectTrigger id={`${uid}-recurrence`} className={fieldCls}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-[var(--radius-control)] border-rule">
+                      {RENEW_PERIODS.map((r) => (
+                        <SelectItem key={r} value={r}>{RECURRENCE_LABELS[r]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-ink-muted">
+                    The day after it is due, the countdown starts again from this period.
+                  </p>
+                  {state.fieldErrors?.recurrence && (
+                    <p className="text-xs text-ink">{state.fieldErrors.recurrence}</p>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <input type="hidden" name="recurrence" value="none" />
+                  <p className="text-xs text-ink-muted">
+                    It stays on the map the day it is due. The next day it is marked done.
+                  </p>
+                </>
               )}
             </div>
 
@@ -268,15 +302,6 @@ export function ItemFormDialog({
               )}
             </div>
 
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                name="autoRenews"
-                defaultChecked={item?.autoRenews ?? false}
-                className="size-3.5 rounded-[2px] border border-rule-input accent-[var(--accent)]"
-              />
-              Auto-renews
-            </label>
           </form>
 
         <DialogFooter>

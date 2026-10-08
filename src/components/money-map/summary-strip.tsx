@@ -73,7 +73,7 @@ function SummaryMetric({
   emphasis?: "overdue" | "dueSoon";
 }) {
   return (
-    <div className="flex min-w-28 flex-col gap-0.5">
+    <div className="flex min-w-0 flex-col gap-0.5 sm:min-w-28">
       <span className="ledger-cap text-[10px] text-ink-muted">{label}</span>
       <span
         className={
@@ -99,7 +99,7 @@ export function SummaryStrip({ model }: { model: MapModel }) {
     <div
       role="status"
       aria-label="Cost summary"
-      className="flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-rule bg-surface px-4 py-2.5"
+      className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-rule bg-surface px-3 py-2 sm:gap-x-8 sm:gap-y-3 sm:px-4 sm:py-2.5"
     >
       {model.totals.length === 0 && (
         <p className="text-xs text-ink-muted">No priced items yet.</p>

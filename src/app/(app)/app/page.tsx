@@ -9,6 +9,7 @@ import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getOrSeedCategories } from "@/lib/categories";
 import { applyFilters, hasActiveFilters, parseFilters } from "@/lib/filters";
+import { planSettlement } from "@/lib/map/cycle";
 import { requireUser } from "@/lib/supabase/require-user";
 import type { ItemRow } from "@/lib/validation/item";
 
@@ -36,11 +37,12 @@ export default async function AppPage({
       .order("due_date", { ascending: true }),
   ]);
 
-  const allItems = (itemsResult.data ?? []) as ItemRow[];
+  const loaded = (itemsResult.data ?? []) as ItemRow[];
+  const allItems = await settleOpenItems(supabase, loaded);
   const items = applyFilters(allItems, filters);
 
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <FilterBar
         filters={filters}
         categories={categories}
@@ -85,6 +87,45 @@ export default async function AppPage({
       )}
     </div>
   );
+}
+
+/**
+ * On open: a one-off that is already the day after its due date is marked
+ * done. A renewal rolls forward until the countdown is today or later.
+ */
+async function settleOpenItems(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  items: ItemRow[],
+): Promise<ItemRow[]> {
+  const now = new Date();
+  const settled = await Promise.all(
+    items.map(async (item) => {
+      const plan = planSettlement(item, now);
+      if (plan.kind === "keep") return item;
+      if (plan.kind === "done") {
+        const { error } = await supabase
+          .from("items")
+          .update({
+            status: "done",
+            completed_at: now.toISOString(),
+            snoozed_until: null,
+          })
+          .eq("id", item.id);
+        return error ? item : null;
+      }
+      const { error } = await supabase
+        .from("items")
+        .update({
+          due_date: plan.dueDate,
+          status: "active",
+          snoozed_until: null,
+        })
+        .eq("id", item.id);
+      if (error) return item;
+      return { ...item, due_date: plan.dueDate, status: "active" as const, snoozed_until: null };
+    }),
+  );
+  return settled.filter((item): item is ItemRow => item != null);
 }
 
 /** Keeps the active view when clearing filters — no MAP↔LEDGER jump. */

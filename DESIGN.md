@@ -1,6 +1,6 @@
 ---
 name: SirenDeck
-description: The Ink Ledger — a premium monochrome ledger for every renewal, sized by cost, shaded by due.
+description: The Ink Ledger — a premium monochrome ledger for every renewal, sized by how soon it is due, shaded by the same ramp.
 colors:
   paper: "#f7f5f0"
   surface: "#fffdf9"
@@ -105,7 +105,7 @@ components:
 
 SirenDeck is a premium monochrome ledger for everything that expires, renews, or comes due. The visual world is warm paper and near-black ink: a light editorial ground (#f7f5f0), surfaces one step whiter, hairline rules like ledger ruling, and a single grayscale five-step urgency ramp where **lightness is urgency** — calm entries sit pale, past-due entries go solid ink. Typography pairs an editorial serif display (Fraunces, optical-size axis) with a quiet grotesque (Inter) and JetBrains Mono tabular figures for every number that can change.
 
-The Money Map is the signature view: a treemap sized by yearly cost and shaded by ink depth, so the question "what renews soon and what does it cost me" is answered by area and darkness at a glance. The soonest due entry carries an ink ring anchor. There are no pulses — in a print world, ink itself is the alarm. The one authored motion moment is rerank-in-place: entries reflow with a soft spring when dates or costs change.
+The Money Map is the signature view: a treemap sized by how soon each deadline is and shaded by ink depth, so the closest deadline is the largest tile and darkness says the same thing. Yearly cost stays on the tile. The soonest due entry carries an ink ring anchor. There are no pulses — in a print world, ink itself is the alarm. The one authored motion moment is rerank-in-place: entries reflow with a soft spring when dates or costs change.
 
 **Key Characteristics:**
 - Warm paper ground, near-black ink text, hairline rules — premium by restraint, never floating cards or shadows on panels
@@ -198,7 +198,7 @@ Square and print-like. Tiles 2px radius (ink blocks), controls 3px, dialogs 6px.
 - **Icon-sm:** ghost, 28px, for row actions — always visible on coarse pointers
 
 ### Money Map (signature)
-Squarified treemap: tiles sized by yearly cost, shaded by the ink ramp, 2px gaps, hairline ink/20 borders for step separation. In-tile: title (500), mono cost, days badge (family-tinted chip, ink 10–14% over light fills / paper 20–24% over dark). Soonest due entry = ink ring anchor (ring-2 + offset). Entrance stagger largest-first (30ms steps); rerank spring (stiffness 260 / damping 30). Tooltips flip at canvas edges; sr-only ranked list mirrors the map.
+Squarified treemap: tiles sized by deadline closeness, shaded by the ink ramp, 2px gaps, hairline ink/20 borders for step separation. Cost is a label, not the area. In-tile: title (500), mono cost, days badge (family-tinted chip, ink 10–14% over light fills / paper 20–24% over dark). Soonest due entry = ink ring anchor (ring-2 + offset). Entrance stagger largest-first (30ms steps); rerank spring (stiffness 260 / damping 30). Tooltips flip at canvas edges; sr-only ranked list mirrors the map.
 
 ### Ledger rows
 Rank in serif (01, 02…), square shade swatch (ink-bordered; full ink border when overdue), title + category, mono due date, right-stacked mono cost over days chip. Overdue rows carry a 2px ink left rule — ink weight bleeds into the row. Chip color ramps only inside the 14-day action horizon; beyond it, quiet ink-muted.

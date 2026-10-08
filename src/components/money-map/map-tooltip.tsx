@@ -1,5 +1,6 @@
 "use client";
 
+import { CheckIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import type { MapItem } from "@/lib/map/map-model";
@@ -26,16 +27,22 @@ const PERIOD: Record<Recurrence, string> = {
 export function MapTooltip({
   item,
   category,
+  onEdit,
+  onDone,
+  donePending,
 }: {
   item: MapItem | null;
   category?: CategoryRow;
+  onEdit?: () => void;
+  onDone?: () => void;
+  donePending?: boolean;
 }) {
   const reduced = useReducedMotion();
   const yearCost = item ? formatCost(item.yearCost, item.currency) : null;
   const charge = item ? formatCost(item.amount, item.currency) : null;
 
   return (
-    <div className="relative flex h-16 shrink-0 items-center gap-3 border-t border-black bg-black px-4 text-white">
+    <div className="relative flex min-h-16 shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-t border-black bg-black px-3 py-2 text-white sm:h-16 sm:flex-nowrap sm:px-4 sm:py-0">
       <div
         role="status"
         aria-live="polite"
@@ -50,7 +57,7 @@ export function MapTooltip({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="flex min-w-0 flex-1 items-center gap-4"
+              className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4"
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{item.title}</p>
@@ -64,7 +71,7 @@ export function MapTooltip({
                 </p>
                 <p className="text-[10px] tracking-[0.08em] text-white/55">YEARLY</p>
               </div>
-              <div className="shrink-0 text-right">
+              <div className="hidden shrink-0 text-right sm:block">
                 <p className="tabular text-sm" style={{ fontFamily: "var(--font-mono-var)" }}>
                   {charge ?? "·"}
                 </p>
@@ -78,6 +85,31 @@ export function MapTooltip({
                 </p>
                 <p className="text-[10px] tracking-[0.08em] text-white/55">DUE</p>
               </div>
+              {onDone && (
+                <button
+                  type="button"
+                  onClick={onDone}
+                  disabled={donePending}
+                  aria-label={
+                    item.autoRenews && item.recurrence !== "none"
+                      ? `Mark ${item.title} done and start the next cycle`
+                      : `Mark ${item.title} done`
+                  }
+                  className="inline-flex shrink-0 items-center gap-1 rounded-[var(--radius-control)] border border-white/25 px-2.5 py-1.5 text-xs font-medium text-white hover:border-white/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white disabled:opacity-50"
+                >
+                  <CheckIcon aria-hidden className="size-3.5" />
+                  Done
+                </button>
+              )}
+              {onEdit && (
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  className="shrink-0 rounded-[var(--radius-control)] border border-white/25 px-2.5 py-1.5 text-xs font-medium text-white hover:border-white/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
+                >
+                  Edit
+                </button>
+              )}
             </motion.div>
           ) : (
             <motion.p

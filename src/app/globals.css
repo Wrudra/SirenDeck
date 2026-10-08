@@ -38,17 +38,17 @@
   --on-critical: #f7f5f0;
   --on-overdue: #f7f5f0;
 
-  /* Heatmap mode — muted fills, dark text, white board. */
-  --heat-bg: #ffffff;
-  --heat-rule: #ffffff;
+  /* Heatmap mode — stock heat map: black gutters, green→red blocks, dark text. */
+  --heat-bg: #111111;
+  --heat-rule: #111111;
   --heat-ink: #1c1917;
   --heat-ink-muted: rgba(28, 25, 23, 0.62);
 
-  --heat-calm: #c5ddd2;
-  --heat-soon: #d7e3cc;
-  --heat-urgent: #e6e1d6;
-  --heat-critical: #e7d0c6;
-  --heat-overdue: #e4c4c0;
+  --heat-calm: #3ecf8e;
+  --heat-soon: #9ccc65;
+  --heat-urgent: #f0c14d;
+  --heat-critical: #f08a4a;
+  --heat-overdue: #ef5350;
 
   /* text-safe twins for small chips directly on paper/surface */
   --urgency-calm-text: #6e6a5f;

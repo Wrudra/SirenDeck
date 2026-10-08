@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { AnimatePresence, MotionConfig } from "motion/react";
 import {
   BadgeCheckIcon,
@@ -13,12 +14,13 @@ import {
 } from "lucide-react";
 
 import { ItemFormDialog } from "@/components/items/item-form-dialog";
+import { markDone } from "@/lib/actions/items";
 import { buildMapModel, sumCategoryTotals, type MapItem } from "@/lib/map/map-model";
 import { fitSectionTotal, formatSectionTotal } from "@/lib/map/section-total";
 import {
   OTHER_GROUP_ID,
   layoutFlat,
-  layoutGroupedReadable,
+  layoutGrouped,
   type GroupDatum,
   type GroupRect,
 } from "@/lib/map/treemap";
@@ -51,6 +53,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [requestedZoomId, setZoomId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [donePending, startDone] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -104,23 +107,42 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
       list.push(item);
       groups.set(item.categoryId, list);
     }
-    return [...groups.entries()].map(([id, list]) => ({
-      id,
-      children: list.map((i) => ({ id: i.id, value: i.yearCost ?? 0 })),
+    const built = [...groups.entries()].map(([id, list]) => {
+      const sorted = [...list].sort(
+        (a, b) => a.daysLeft - b.daysLeft || a.id.localeCompare(b.id),
+      );
+      return {
+        id,
+        soonest: sorted[0]?.daysLeft ?? 0,
+        children: sorted.map((item, index) => ({
+          id: item.id,
+          value: item.layoutWeight,
+          order: index,
+        })),
+      };
+    });
+    built.sort((a, b) => a.soonest - b.soonest || a.id.localeCompare(b.id));
+    return built.map((group, index) => ({
+      id: group.id,
+      order: index,
+      children: group.children,
     }));
   }, [model]);
 
   /**
-   * Overview layout. Categories too small for a readable section (below
-   * ~96px wide) are folded into one "Other" section instead of thin slivers.
+   * Overview layout. A stock-heatmap treemap: categories are the sectors,
+   * each tile's area is how soon it is due, and squarify keeps the blocks
+   * as square as the weights allow. The heaviest sector lands first.
    */
   const overview = useMemo(() => {
     if (!container || container.w <= 0 || container.h <= 0) return null;
-    return layoutGroupedReadable(entries, container.w, container.h, {
-      paddingInner: 3,
-      headerHeight: 22,
-      minGroupWidth: 96,
-    });
+    return {
+      rects: layoutGrouped(entries, container.w, container.h, {
+        paddingInner: 2,
+        headerHeight: 22,
+      }),
+      otherMembers: [] as string[],
+    };
   }, [container, entries]);
 
   const otherMembers = useMemo(() => overview?.otherMembers ?? [], [overview]);
@@ -181,6 +203,20 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
 
   const activeId = hoveredId ?? selectedId ?? focusedId;
   const activeItem = activeId ? (itemById.get(activeId) ?? null) : null;
+  const onDone = useCallback(() => {
+    if (!activeItem) return;
+    const id = activeItem.id;
+    startDone(async () => {
+      const result = await markDone(id);
+      if (result.ok) {
+        toast.success(result.rolled ? "Next cycle started" : "Marked done");
+        setSelectedId(null);
+        setHoveredId(null);
+      } else if (result.error) {
+        toast.error(result.error);
+      }
+    });
+  }, [activeItem]);
 
   const empty = items.length === 0;
 
@@ -203,8 +239,8 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
               <p className="ledger-cap mt-3 text-[11px] text-ink-muted">The ledger is blank</p>
               <h2 className="font-display text-2xl font-semibold text-ink">Your map starts with one entry</h2>
               <p className="text-sm leading-relaxed text-ink-muted" style={{ textWrap: "pretty" }}>
-                Add a subscription, bill or document renewal. Tile size is what it costs you a year.
-                Color is how soon it comes due: green is calm, red is past due.
+                Add a subscription, bill or document renewal. The closer the deadline, the larger the tile.
+                Color runs the same way: green is calm, red is past due.
               </p>
               <ItemFormDialog
                 categories={categories}
@@ -251,7 +287,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
         <div
           ref={ref}
           className="relative min-h-0 flex-1 overflow-hidden bg-heat-bg"
-          aria-label="Money Map: treemap of items sized by yearly cost, colored by urgency. Full list follows."
+          aria-label="Money Map: treemap of items sized by how soon they are due, colored by urgency. Full list follows."
         >
           {groupRects && (
             <>
@@ -323,6 +359,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                         width={child.width}
                         height={child.height}
                         title={item.title}
+                        dueDate={item.dueDate}
                         cost={formatCost(item.yearCost, item.currency)}
                         daysLeft={item.daysLeft}
                         urgency={item.urgency}
@@ -347,6 +384,8 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
         <MapTooltip
           item={activeItem}
           category={activeItem ? categoryById.get(activeItem.categoryId) : undefined}
+          onDone={activeItem ? onDone : undefined}
+          donePending={donePending}
         />
         </>
         )}

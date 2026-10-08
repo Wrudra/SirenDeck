@@ -1,6 +1,8 @@
 import {
   hierarchy,
   treemap,
+  treemapDice,
+  treemapSlice,
   treemapSquarify,
   type HierarchyRectangularNode,
 } from "d3-hierarchy";
@@ -8,6 +10,8 @@ import {
 export interface TileDatum {
   id: string;
   value: number;
+  /** Reading order inside a category. Lower is placed first (top). */
+  order?: number;
 }
 
 export interface TileRect {
@@ -21,6 +25,8 @@ export interface TileRect {
 export interface GroupDatum {
   id: string;
   children: TileDatum[];
+  /** Reading order among categories. Lower is placed first (left). */
+  order?: number;
 }
 
 export interface GroupRect {
@@ -63,7 +69,7 @@ export function layoutFlat(
     .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
   const laidOut = treemap<D3Datum>()
-    .tile(treemapSquarify)
+    .tile(treemapSquarify.ratio(1))
     .size([width, height])
     .paddingInner(paddingInner)(root);
 
@@ -94,7 +100,86 @@ export function layoutGrouped(
     .sort((a, b) => (b.value ?? 0) - (a.value ?? 0));
 
   const laidOut = treemap<D3Datum>()
-    .tile(treemapSquarify)
+    .tile(treemapSquarify.ratio(1))
+    .size([width, height])
+    .paddingInner(paddingInner)
+    .paddingTop((node) => (node.depth === 0 ? 0 : headerHeight))(root);
+
+  return (laidOut.children ?? []).map((group) => ({
+    id: group.data.id,
+    x: group.x0,
+    y: group.y0,
+    width: group.x1 - group.x0,
+    height: group.y1 - group.y0,
+    children: (group.children ?? []).map((child) => ({
+      id: child.data.id,
+      x: child.x0 - group.x0,
+      y: child.y0 - group.y0,
+      width: child.x1 - child.x0,
+      height: child.y1 - child.y0,
+    })),
+  }));
+}
+
+function byOrder(
+  a: { data: { order?: number } },
+  b: { data: { order?: number } },
+): number {
+  return (a.data.order ?? 0) - (b.data.order ?? 0);
+}
+
+/**
+ * A category section is as large as its soonest item, not the sum of
+ * every child. Children keep their relative weights inside that section,
+ * so a pile of far deadlines cannot outgrow one close one, and a far
+ * sibling still takes a visible share of its own section.
+ */
+function sizedBySoonest(children: TileDatum[]): TileDatum[] {
+  if (children.length === 0) return [];
+  const max = Math.max(...children.map((c) => c.value));
+  const sum = children.reduce((total, c) => total + c.value, 0);
+  if (!(max > 0) || !(sum > 0)) return children;
+  const scale = max / sum;
+  return children.map((child, index) => ({
+    ...child,
+    value: child.value * scale,
+    order: child.order ?? index,
+  }));
+}
+
+/**
+ * Categories as columns, left to right in the order given. Items stack
+ * top to bottom inside the column, soonest on top when the caller sorted
+ * them that way. Area still follows `value`.
+ */
+export function layoutOrdered(
+  groups: GroupDatum[],
+  width: number,
+  height: number,
+  opts: { paddingInner?: number; headerHeight?: number } = {},
+): GroupRect[] {
+  const { paddingInner = 1, headerHeight = 24 } = opts;
+  if (groups.length === 0 || width <= 0 || height <= 0) return [];
+
+  const root = hierarchy<D3Datum>({
+    id: "__root__",
+    value: 0,
+    order: 0,
+    children: groups.map((group, index) => ({
+      id: group.id,
+      value: 0,
+      order: group.order ?? index,
+      children: sizedBySoonest(group.children),
+    })),
+  })
+    .sum((d) => d.value)
+    .sort(byOrder);
+
+  const laidOut = treemap<D3Datum>()
+    .tile((node, x0, y0, x1, y1) => {
+      if (node.depth === 0) treemapDice(node, x0, y0, x1, y1);
+      else treemapSlice(node, x0, y0, x1, y1);
+    })
     .size([width, height])
     .paddingInner(paddingInner)
     .paddingTop(headerHeight)(root);
@@ -113,6 +198,31 @@ export function layoutGrouped(
       height: child.y1 - child.y0,
     })),
   }));
+}
+
+/** One category, items stacked top to bottom in the given order. */
+export function layoutOrderedFlat(
+  items: TileDatum[],
+  width: number,
+  height: number,
+  paddingInner = 1,
+): TileRect[] {
+  if (items.length === 0 || width <= 0 || height <= 0) return [];
+
+  const root = hierarchy<D3Datum>({
+    id: "__root__",
+    value: 0,
+    children: items.map((item, index) => ({ ...item, order: item.order ?? index })),
+  })
+    .sum((d) => d.value)
+    .sort(byOrder);
+
+  const laidOut = treemap<D3Datum>()
+    .tile(treemapSlice)
+    .size([width, height])
+    .paddingInner(paddingInner)(root);
+
+  return laidOut.leaves().map(toRect);
 }
 
 /** Synthetic section id for tiny categories folded together. */
@@ -135,9 +245,8 @@ export interface ReadableGroupedLayout {
  *
  * Undersized sections are pulled into one "small" bucket. Two or more
  * become the synthetic Other section ({@link OTHER_GROUP_ID}); a lone one
- * keeps its own id. If the bucket itself is still undersized, its layout
- * weight is boosted until it clears the minimum. Readable labels win over
- * area fidelity for tiny categories; big categories stay proportional.
+ * keeps its own id. The bucket is not enlarged: a category of far-off
+ * deadlines stays small. Area stays the sum of the weights passed in.
  */
 export function layoutGroupedReadable(
   groups: GroupDatum[],
@@ -164,7 +273,6 @@ export function layoutGroupedReadable(
 
   const isThin = (r: GroupRect) => r.width < minGroupWidth - 0.5 || r.height < minGroupHeight - 0.5;
   const members = new Set<string>();
-  let boost = 1;
   let rects: GroupRect[] = [];
   let bucketId: string | null = null;
 
@@ -175,14 +283,9 @@ export function layoutGroupedReadable(
 
     const input: GroupDatum[] = [...real];
     if (bucketId) {
-      const children = folded.flatMap((g) => g.children);
-      // Inside the bucket, keep every tile at least ~2/3 of its largest
-      // sibling so a $5 line item doesn't collapse below a readable
-      // ~40–48px leaf (half-size neighbors were crushing labels).
-      const floor = Math.max(...children.map((c) => c.value)) * 0.65;
       input.push({
         id: bucketId,
-        children: children.map((c) => ({ id: c.id, value: Math.max(c.value, floor) * boost })),
+        children: folded.flatMap((g) => g.children),
       });
     }
 
@@ -192,14 +295,6 @@ export function layoutGroupedReadable(
     // Never fold the last real section away: keep at least one proportional.
     if (thinReal.length > 0 && real.length - thinReal.length >= 1) {
       for (const r of thinReal) members.add(r.id);
-      boost = 1; // bucket changed; re-derive its weight from scratch
-      continue;
-    }
-
-    const bucket = bucketId ? rects.find((r) => r.id === bucketId) : undefined;
-    if (bucket && isThin(bucket)) {
-      const need = Math.max(minGroupWidth / bucket.width, minGroupHeight / bucket.height);
-      boost *= Math.min(Math.max(need * need, 1.25), 8);
       continue;
     }
     break;

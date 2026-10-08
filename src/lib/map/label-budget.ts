@@ -18,6 +18,7 @@ const BREATHE = 6; // soft margin so labels aren't flush with the tile edge
 const TITLE_LINE = 20; // text-base leading-tight
 const TITLE_CHAR = 8.5; // avg glyph width, semibold 16px
 const TICKER_LINE = 20;
+const DATE_LINE = 16;
 const COST_LINE = 16;
 const ICON_LINE = 18; // size-4 + mb-0.5
 
@@ -27,6 +28,8 @@ export interface LabelBudget {
   /** Clamp title to this many lines (1 when a 2-line wrap won't fit). */
   titleLines: 1 | 2;
   showTicker: boolean;
+  /** Calendar due date, under the day count. */
+  showDate: boolean;
   showCost: boolean;
   showIcon: boolean;
   /** Single-letter fallback when neither title nor ticker fits. */
@@ -61,19 +64,31 @@ export function labelBudget(
     needTitleTicker = stackHeight(1, [TICKER_LINE]);
   }
 
-  const needCost = stackHeight(titleLines, [TICKER_LINE, COST_LINE]);
+  const needDate = stackHeight(titleLines, [TICKER_LINE, DATE_LINE]);
+  const needCost = stackHeight(titleLines, [TICKER_LINE, DATE_LINE, COST_LINE]);
   const needIcon =
-    PAD_Y + BREATHE + ICON_LINE + GAP + titleLines * TITLE_LINE + GAP + TICKER_LINE + GAP + COST_LINE;
+    PAD_Y +
+    BREATHE +
+    ICON_LINE +
+    GAP +
+    titleLines * TITLE_LINE +
+    GAP +
+    TICKER_LINE +
+    GAP +
+    DATE_LINE +
+    GAP +
+    COST_LINE;
 
   // Ticker-only is allowed without the breathe margin — a centered "+Nd" on a
   // ~36px tile is still readable, and beats an empty cell.
   const showTicker = width >= TICKER_MIN && height >= PAD_Y + TICKER_LINE;
   const showTitle = width >= FULL_MIN_W && height >= needTitleTicker;
-  const showCost = showTitle && hasCost && height >= needCost;
+  const showDate = showTitle && showTicker && height >= needDate;
+  const showCost = showTitle && showDate && hasCost && height >= needCost;
   const showIcon = showTitle && showCost && hasIcon && width >= 96 && height >= needIcon;
   const showMonogram = !showTitle && !showTicker && width >= 20 && height >= 24;
 
-  return { showTitle, titleLines, showTicker, showCost, showIcon, showMonogram };
+  return { showTitle, titleLines, showTicker, showDate, showCost, showIcon, showMonogram };
 }
 
 /** First alphanumeric character of a title, uppercased — monogram fallback. */

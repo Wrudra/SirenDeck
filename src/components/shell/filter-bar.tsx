@@ -187,7 +187,7 @@ export function FilterBar({
       </div>
 
       {/* selects · horizontal scroll on narrow screens */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] sm:pb-0 [&::-webkit-scrollbar]:hidden">
+      <div className="flex flex-wrap items-center gap-1.5 sm:flex-nowrap sm:overflow-x-auto sm:pb-0">
         <label className="sr-only" htmlFor="filter-category">Category</label>
         <div className="relative shrink-0">
           <select

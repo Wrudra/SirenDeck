@@ -57,6 +57,7 @@ describe("labelBudget", () => {
     expect(b).toMatchObject({
       showTitle: true,
       showTicker: true,
+      showDate: true,
       showCost: true,
       showIcon: true,
       showMonogram: false,

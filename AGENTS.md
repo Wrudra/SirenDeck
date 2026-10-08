@@ -4,7 +4,7 @@
 A personal life-admin tracker for everything that expires, renews, or comes due
 (subscriptions, insurance, domains, warranties, licenses, bills, passports/visas).
 One signature view: the **Money Map** — a treemap where each rectangle is a deadline,
-sized by monthly/yearly cost and colored by urgency. It must answer at a glance:
+sized by how soon each deadline is and colored by urgency. Cost stays on the tile. It must answer at a glance:
 "What is renewing soon, and what does it cost me?"
 
 ## Stack (fixed — do not substitute)

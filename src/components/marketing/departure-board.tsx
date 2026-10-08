@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { MotionConfig, motion, useReducedMotion } from "motion/react";
 
+import { deadlineWeight } from "@/lib/map/deadline-weight";
 import { layoutFlat } from "@/lib/map/treemap";
 import { getUrgency, type UrgencyLevel } from "@/lib/urgency";
 
@@ -104,7 +105,7 @@ export function DepartureBoard() {
   );
 
   const rects = useMemo(() => {
-    const inputs = items.map((i) => ({ id: i.id, value: i.cost }));
+    const inputs = items.map((i) => ({ id: i.id, value: deadlineWeight(i.daysLeft) }));
     const laid = layoutFlat(inputs, 720, 300, 2);
     const byId = new Map(laid.map((r) => [r.id, r]));
     // scale from the 720×300 design frame to percentage space
@@ -127,14 +128,14 @@ export function DepartureBoard() {
       <div className="overflow-hidden border border-rule bg-heat-bg">
         {/* heatmap header rail */}
         <div className="flex items-center justify-between border-b border-heat-rule px-4 py-2.5">
-          <p className="ledger-cap text-[10px] text-heat-ink-muted">
+          <p className="ledger-cap text-[10px] text-white/55">
             Entries: renewals &amp; expiries
           </p>
-          <p className="ledger-cap text-[10px] text-heat-ink-muted">Synthetic</p>
+          <p className="ledger-cap text-[10px] text-white/55">Synthetic</p>
         </div>
 
         <div className="grid md:grid-cols-[3fr_2fr]">
-          {/* the map: sized by cost, shaded by urgency */}
+          {/* the map: sized by deadline, shaded by urgency */}
           <div
             aria-hidden
             className="relative aspect-[12/5] gap-px bg-heat-rule p-px md:border-r md:border-heat-rule"
@@ -183,7 +184,7 @@ export function DepartureBoard() {
                 transition={RANK_SPRING}
                 className="grid grid-cols-[1fr_auto_auto] items-baseline gap-3 bg-heat-bg px-3 py-2"
               >
-                <span className="truncate text-[13px] text-heat-ink">{item.title}</span>
+                <span className="truncate text-[13px] text-white/90">{item.title}</span>
                 <span
                   className="tabular text-[12px] font-semibold"
                   style={{ color: TEXT_TONE[item.urgency], fontFamily: "var(--font-mono-var)" }}
@@ -191,7 +192,7 @@ export function DepartureBoard() {
                   {daysWord(item.daysLeft)}
                 </span>
                 <span
-                  className="tabular w-14 text-right text-[12px] text-heat-ink-muted"
+                  className="tabular w-14 text-right text-[12px] text-white/55"
                   style={{ fontFamily: "var(--font-mono-var)" }}
                 >
                   {fmtBDT(item.cost)}
@@ -203,9 +204,9 @@ export function DepartureBoard() {
 
         {/* heatmap footer: the reading key */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-heat-rule px-4 py-2">
-          <span className="ledger-cap text-[9px] text-heat-ink-muted">Tile size = yearly cost</span>
-          <span className="ledger-cap text-[9px] text-heat-ink-muted">Color = urgency</span>
-          <span className="ledger-cap ml-auto text-[9px] text-heat-ink-muted">Rows rank by due date</span>
+          <span className="ledger-cap text-[9px] text-white/55">Tile size = how soon due</span>
+          <span className="ledger-cap text-[9px] text-white/55">Color = urgency</span>
+          <span className="ledger-cap ml-auto text-[9px] text-white/55">Rows rank by due date</span>
         </div>
       </div>
     </MotionConfig>

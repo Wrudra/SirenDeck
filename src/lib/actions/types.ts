@@ -11,4 +11,4 @@ export const idleState: ActionState = { ok: false };
  * Result for non-form actions (markDone / snoozeItem / deleteItem).
  * Clients toast on these; the add/edit form uses useActionState instead.
  */
-export type MutationResult = { ok: true } | { ok: false; error: string };
+export type MutationResult = { ok: true; rolled?: boolean } | { ok: false; error: string };

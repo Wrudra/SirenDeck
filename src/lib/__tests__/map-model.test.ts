@@ -36,21 +36,44 @@ describe("buildMapModel", () => {
       NOW,
     );
 
-    expect(model.tiles.map((t) => t.id)).toEqual(["b"]);
-    expect(model.shelf.map((s) => s.id)).toEqual(["c", "a"]);
+    expect(model.tiles.map((t) => t.id)).toEqual(["c", "a", "b"]);
+    expect(model.shelf).toEqual([]);
     expect(model.itemCount).toBe(3);
   });
 
-  it("sorts tiles largest yearCost first", () => {
+  it("sorts tiles soonest first, ignoring cost", () => {
     const model = buildMapModel(
       [
-        item({ id: "small", amount: "10" }),
-        item({ id: "big", amount: "500" }),
-        item({ id: "mid", amount: "100", recurrence: "monthly" }), // 1200/yr
+        item({ id: "expensive-later", amount: "500000", due_date: "2027-06-01" }),
+        item({ id: "cheap-tomorrow", amount: "10", due_date: "2026-10-05" }),
+        item({ id: "unpriced-today", amount: null, due_date: "2026-10-04" }),
+        item({ id: "overdue", amount: "1", due_date: "2026-09-01" }),
       ],
       NOW,
     );
-    expect(model.tiles.map((t) => t.id)).toEqual(["mid", "big", "small"]);
+    expect(model.tiles.map((t) => t.id)).toEqual([
+      "overdue",
+      "unpriced-today",
+      "cheap-tomorrow",
+      "expensive-later",
+    ]);
+    const weights = model.tiles.map((t) => t.layoutWeight);
+    expect(weights[0]).toBeGreaterThan(weights[1]);
+    expect(weights[1]).toBeGreaterThan(weights[2]);
+    expect(weights[2]).toBeGreaterThan(weights[3]);
+  });
+
+  it("same deadline ties break by yearly cost, then id", () => {
+    const model = buildMapModel(
+      [
+        item({ id: "b", amount: "10", due_date: "2026-10-20" }),
+        item({ id: "a", amount: "10", due_date: "2026-10-20" }),
+        item({ id: "rich", amount: "900", due_date: "2026-10-20" }),
+      ],
+      NOW,
+    );
+    expect(model.tiles.map((t) => t.id)).toEqual(["rich", "a", "b"]);
+    expect(new Set(model.tiles.map((t) => t.layoutWeight)).size).toBe(1);
   });
 
   it("merges long tail beyond the cap into Other with summed cost", () => {
@@ -87,13 +110,29 @@ describe("buildMapModel", () => {
     expect(model.totals).toHaveLength(2);
   });
 
-  it("zero-cost items are excluded from tiles but kept on the shelf", () => {
+  it("zero-cost and unpriced items stay on the board", () => {
     const model = buildMapModel(
-      [item({ id: "zero", amount: "0", due_date: "2026-12-01" })],
+      [
+        item({ id: "zero", amount: "0", due_date: "2026-12-01" }),
+        item({ id: "blank", amount: null, due_date: "2026-10-05" }),
+      ],
       NOW,
     );
-    expect(model.tiles).toHaveLength(0);
-    expect(model.shelf.map((s) => s.id)).toEqual(["zero"]);
+    expect(model.tiles.map((t) => t.id)).toEqual(["blank", "zero"]);
+    expect(model.shelf).toEqual([]);
+  });
+
+  it("the tile cap keeps the soonest deadlines, not the expensive ones", () => {
+    const items = [
+      item({ id: "later-rich", amount: "99999", due_date: "2028-01-01" }),
+      ...Array.from({ length: TILE_CAP }, (_, i) =>
+        item({ id: `soon-${i}`, amount: "1", due_date: "2026-10-05" }),
+      ),
+    ];
+    const model = buildMapModel(items, NOW);
+    expect(model.tiles).toHaveLength(TILE_CAP);
+    expect(model.tiles.every((t) => t.id.startsWith("soon"))).toBe(true);
+    expect(model.other).toMatchObject({ count: 1, yearCost: 99999 });
   });
 
   it("totals yearly cost per category and currency, ignoring unpriced", () => {

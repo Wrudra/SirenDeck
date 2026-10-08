@@ -76,10 +76,13 @@ export function ItemList({
   const [pending, startTransition] = useTransition();
   const reduced = useReducedMotion();
 
-  function run(action: () => Promise<{ ok: boolean; error?: string }>, successMsg: string) {
+  function run(
+    action: () => Promise<{ ok: boolean; error?: string; rolled?: boolean }>,
+    successMsg: string,
+  ) {
     startTransition(async () => {
       const result = await action();
-      if (result.ok) toast.success(successMsg);
+      if (result.ok) toast.success(result.rolled ? "Next cycle started" : successMsg);
       else if (result.error) toast.error(result.error);
     });
   }

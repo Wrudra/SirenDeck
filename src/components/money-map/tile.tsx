@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { cn } from "cn";
 import type { UrgencyLevel } from "@/lib/urgency";
+import { formatDueDate } from "@/lib/map/cycle";
 import { labelBudget, titleMonogram } from "@/lib/map/label-budget";
 
 /** Muted heatmap fills. Dark text on all levels. */
@@ -50,12 +51,17 @@ interface TileProps {
   width: number;
   height: number;
   title: string;
+  dueDate: string;
+  categoryId: string;
+  categoryName?: string | null;
   cost: string | null;
   daysLeft: number;
   urgency: UrgencyLevel;
   icon: LucideIcon | null;
   /** the soonest due item on the board */
   isSoonest?: boolean;
+  /** Snap the tile to the row edge while a narrow lane scrolls. */
+  snap?: boolean;
   hot?: boolean;
   selected?: boolean;
   /** entrance stagger index (largest-first = 0); undefined = no entrance */
@@ -73,11 +79,15 @@ function TileInner({
   width,
   height,
   title,
+  dueDate,
+  categoryId,
+  categoryName,
   cost,
   daysLeft,
   urgency,
   icon: Icon,
   isSoonest,
+  snap,
   hot,
   selected,
   index,
@@ -87,14 +97,15 @@ function TileInner({
   onFocusChange,
 }: TileProps) {
   const reduced = useReducedMotion();
-  const { showTitle, titleLines, showTicker, showCost, showIcon, showMonogram } = labelBudget(
+  const { showTitle, titleLines, showTicker, showDate, showCost, showIcon, showMonogram } = labelBudget(
     width,
     height,
     title,
     cost != null,
     Icon != null,
   );
-  const label = `${title}${cost ? `, ${cost} per year` : ""}, ${daysLabel(daysLeft)}`;
+  const showCategory = Boolean(categoryName) && showTitle && width >= 140 && height >= 112;
+  const label = `${title}, ${daysLabel(daysLeft)}, due ${formatDueDate(dueDate)}${cost ? `, ${cost} per year` : ""}`;
 
   return (
     <motion.button
@@ -109,6 +120,7 @@ function TileInner({
         ...(index != null && !reduced ? { delay: Math.min(index * 0.03, 0.6) } : {}),
       }}
       data-tile-id={id}
+      data-category-id={categoryId}
       onClick={() => onSelect?.(id)}
       onDoubleClick={() => onOpen?.(id)}
       onHoverStart={() => onHoverChange?.(id)}
@@ -118,20 +130,26 @@ function TileInner({
       aria-label={label}
       className={cn(
         "group absolute flex cursor-pointer flex-col items-center justify-center overflow-hidden border border-transparent p-1.5 text-center outline-none",
+        snap && "snap-start",
         "focus-visible:ring-2 focus-visible:ring-heat-ink/70",
         "hover:z-20 focus-visible:z-20",
         (hot || selected) && "z-20 shadow-[inset_0_0_0_2px_#1c1917]",
-        URGENCY_FILL[urgency],
+        daysLeft <= 1 ? URGENCY_FILL.overdue : URGENCY_FILL[urgency],
         URGENCY_PULSE[urgency],
       )}
       style={{ left: x, top: y, width, height }}
     >
       <span className="pointer-events-none flex h-full w-full flex-col items-center justify-center gap-0.5 px-2 text-center">
         {showIcon && Icon != null && <Icon aria-hidden className="mb-0.5 size-4 opacity-80" />}
+        {showCategory && (
+          <span className="ledger-cap max-w-full truncate text-[10px] tracking-[0.08em] text-heat-ink-muted">
+            {categoryName}
+          </span>
+        )}
         {showTitle && (
           <span
             className={cn(
-              "text-base leading-tight font-semibold tracking-[-0.01em]",
+              "text-base leading-tight font-bold tracking-[-0.02em]",
               titleLines === 1 ? "line-clamp-1" : "line-clamp-2",
             )}
           >
@@ -144,8 +162,13 @@ function TileInner({
           </span>
         )}
         {showTicker && (
-          <span className="tabular text-sm font-semibold" style={{ fontFamily: "var(--font-mono-var)" }}>
+          <span className="tabular text-sm font-bold" style={{ fontFamily: "var(--font-mono-var)" }}>
             {daysTicker(daysLeft)}
+          </span>
+        )}
+        {showDate && (
+          <span className="tabular text-[11px] font-medium" style={{ fontFamily: "var(--font-mono-var)" }}>
+            {formatDueDate(dueDate)}
           </span>
         )}
         {showCost && (

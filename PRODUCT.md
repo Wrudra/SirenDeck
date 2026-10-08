@@ -16,11 +16,11 @@ Early-career professionals (BD market, first-salary stage) juggling many small r
 
 ## Product Purpose
 
-SirenDeck tracks everything that expires, renews, or comes due. Success means one glance answers: *what renews soon, and what does it cost me?* The signature view is the **Money Map** — a treemap where each rectangle is a deadline, sized by yearly cost, shaded by urgency, backed by a ranked board list.
+SirenDeck tracks everything that expires, renews, or comes due. Success means one glance answers: *what renews soon, and what does it cost me?* The signature view is the **Money Map** — a treemap where each rectangle is a deadline, sized by how soon it is due, shaded by urgency, with yearly cost on the tile, backed by a ranked board list.
 
 ## Positioning
 
-A departure board for money: deadlines ranked by days-left and priced by yearly cost in a single treemap/ledger mechanism. A neighboring subscription tracker cannot truthfully copy the glance — it ships category-and-card lists, not a cost-weighted urgency canvas.
+A departure board for money: deadlines ranked by days-left and priced by yearly cost in a single treemap/ledger mechanism. A neighboring subscription tracker cannot truthfully copy the glance — it ships category-and-card lists, not a deadline-sized canvas with cost on the tile.
 
 ## Operating Context
 
