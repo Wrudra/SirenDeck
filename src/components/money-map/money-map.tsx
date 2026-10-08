@@ -360,6 +360,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                         height={child.height}
                         title={item.title}
                         dueDate={item.dueDate}
+                        categoryId={item.categoryId}
                         cost={formatCost(item.yearCost, item.currency)}
                         daysLeft={item.daysLeft}
                         urgency={item.urgency}
