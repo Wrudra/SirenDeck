@@ -49,7 +49,9 @@ export default async function LoginPage() {
           <h1 className="font-display text-3xl font-semibold tracking-[-0.01em]">
             Welcome back
           </h1>
-          <p className="text-sm text-ink-muted">Your ledger is where you left it.</p>
+          <p className="text-sm text-ink-muted">
+            Use the email and password for this ledger.
+          </p>
         </div>
 
         <AuthForm mode="login" />

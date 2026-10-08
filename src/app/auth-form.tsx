@@ -18,19 +18,19 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [notice, setNotice] = useState(false);
 
-  function validateField(name: string, value: string): string | null {
-    if (name === "email") {
-      if (value === "") return "Enter your email address.";
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-        return "Email address must include @ and a domain.";
-      }
+  function emailError(value: string): string | null {
+    if (value === "") return "Enter your email address.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      return "Email address must include @ and a domain.";
     }
-    if (name === "password") {
-      if (value === "") return "Enter your password.";
-      if (value.length < 8) return "Use at least 8 characters.";
-    }
+    return null;
+  }
+
+  function passwordError(value: string): string | null {
+    if (value === "") return "Enter your password.";
+    if (value.length < 8) return "Use at least 8 characters.";
     return null;
   }
 
@@ -43,49 +43,40 @@ export function AuthForm({ mode }: { mode: Mode }) {
     });
   }
 
-  function onBlur(name: string, value: string) {
-    const msg = validateField(name, value);
-    setFieldErrors((prev) => {
-      const next = { ...prev };
-      if (msg) next[name] = msg;
-      else delete next[name];
-      return next;
+  async function post(authMode: string, body: Record<string, string>) {
+    const res = await fetch(`/api/auth?mode=${authMode}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      needsConfirmation?: boolean;
+    };
+    if (!res.ok) {
+      throw new Error(data.error ?? "Connection failed. Please try again.");
+    }
+    return data;
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function signInWithPassword(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const errs: Record<string, string> = {};
-    for (const [name, value] of [
-      ["email", email],
-      ["password", password],
-    ] as const) {
-      const msg = validateField(name, value);
-      if (msg) errs[name] = msg;
-    }
+    const emailMsg = emailError(email);
+    const passwordMsg = passwordError(password);
+    if (emailMsg) errs.email = emailMsg;
+    if (passwordMsg) errs.password = passwordMsg;
     setFieldErrors(errs);
     if (Object.keys(errs).length > 0) {
-      const first = errs.email ? "email" : "password";
-      const el = document.getElementById(first);
-      el?.focus();
+      document.getElementById(errs.email ? "email" : "password")?.focus();
       return;
     }
-
     setPending(true);
     setError(null);
     try {
-      const res = await fetch(`/api/auth?mode=${mode}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error ?? "Connection failed. Please try again.");
-      }
-      const data = (await res.json()) as { needsConfirmation?: boolean };
+      const data = await post(mode === "signup" ? "signup" : "login", { email, password });
       if (data.needsConfirmation) {
-        setAwaitingConfirmation(true);
+        setNotice(true);
         return;
       }
       router.replace("/app");
@@ -97,42 +88,36 @@ export function AuthForm({ mode }: { mode: Mode }) {
     }
   }
 
-  if (awaitingConfirmation) {
+  if (notice) {
     return (
       <div className="w-full rounded-[var(--radius-dialog)] border border-rule bg-surface p-5 text-center sm:p-6">
         <p className="ledger-cap text-[10px] text-ink-muted">Check your inbox</p>
-        <p
-          className="mt-3 text-sm leading-relaxed text-ink-muted"
-          style={{ textWrap: "pretty" }}
-        >
-          We sent a confirmation link to{" "}
-          <span className="font-medium text-ink">{email}</span>. Click it to
-          activate your account, then sign in here.
+        <p className="mt-3 text-sm leading-relaxed text-ink-muted" style={{ textWrap: "pretty" }}>
+          We sent a confirmation link to <span className="font-medium text-ink">{email}</span>.
+          Click it, then sign in here.
         </p>
       </div>
     );
   }
 
-  const emailId = "email";
-  const passwordId = "password";
   const formErrorId = `${uid}-form-err`;
 
   return (
     <form
       method="post"
       action="#"
-      onSubmit={handleSubmit}
+      onSubmit={signInWithPassword}
       noValidate
       aria-busy={pending || undefined}
       aria-describedby={error ? formErrorId : undefined}
       className="flex w-full flex-col gap-4 rounded-[var(--radius-dialog)] border border-rule bg-surface p-5 sm:p-6"
     >
       <div className="grid gap-1.5">
-        <label htmlFor={emailId} className="ledger-cap text-[10px] text-ink-muted">
+        <label htmlFor="email" className="ledger-cap text-[10px] text-ink-muted">
           Email
         </label>
         <input
-          id={emailId}
+          id="email"
           name="email"
           type="email"
           required
@@ -145,7 +130,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
             clearFieldError("email");
             if (error) setError(null);
           }}
-          onBlur={() => onBlur("email", email)}
+          onBlur={() => {
+            const msg = emailError(email);
+            setFieldErrors((prev) => {
+              const next = { ...prev };
+              if (msg) next.email = msg;
+              else delete next.email;
+              return next;
+            });
+          }}
           aria-invalid={fieldErrors.email ? true : undefined}
           aria-describedby={fieldErrors.email ? "email-err" : undefined}
           placeholder="you@example.com"
@@ -163,12 +156,12 @@ export function AuthForm({ mode }: { mode: Mode }) {
       </div>
 
       <div className="grid gap-1.5">
-        <label htmlFor={passwordId} className="ledger-cap text-[10px] text-ink-muted">
+        <label htmlFor="password" className="ledger-cap text-[10px] text-ink-muted">
           Password
         </label>
         <div className="relative">
           <input
-            id={passwordId}
+            id="password"
             name="password"
             type={showPassword ? "text" : "password"}
             required
@@ -180,15 +173,17 @@ export function AuthForm({ mode }: { mode: Mode }) {
               clearFieldError("password");
               if (error) setError(null);
             }}
-            onBlur={() => onBlur("password", password)}
+            onBlur={() => {
+              const msg = passwordError(password);
+              setFieldErrors((prev) => {
+                const next = { ...prev };
+                if (msg) next.password = msg;
+                else delete next.password;
+                return next;
+              });
+            }}
             aria-invalid={fieldErrors.password ? true : undefined}
-            aria-describedby={
-              fieldErrors.password
-                ? "password-err"
-                : mode === "signup"
-                  ? "password-hint"
-                  : undefined
-            }
+            aria-describedby={fieldErrors.password ? "password-err" : "password-hint"}
             placeholder="At least 8 characters"
             className={`${fieldCls} pr-11 ${
               fieldErrors.password
@@ -213,11 +208,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
           <p id="password-err" className="text-xs text-ink">
             {fieldErrors.password}
           </p>
-        ) : mode === "signup" ? (
+        ) : (
           <p id="password-hint" className="text-xs text-ink-muted">
             At least 8 characters.
           </p>
-        ) : null}
+        )}
       </div>
 
       {error && (
@@ -233,7 +228,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       <button
         type="submit"
         disabled={pending}
-        className="plate mt-1 h-11 w-full rounded-[var(--radius-control)] text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50"
+        className="plate h-11 w-full rounded-[var(--radius-control)] text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50"
       >
         {pending
           ? mode === "signup"

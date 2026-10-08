@@ -18,7 +18,7 @@ sized by monthly/yearly cost and colored by urgency. It must answer at a glance:
 - Deploy: Vercel. No vector/embedding/AI features in v1.
 
 ## Decisions log
-- **Auth**: email + password (existing). Magic link + Google OAuth were considered and dropped for v1.
+- **Auth**: email + password. Confirmation redirects use `NEXT_PUBLIC_SITE_URL`, never the request host.
 - **Default currency**: BDT (৳) at the DB level; per-item override + settings page later.
 - **Migrations**: baseline hardening + Phase 2 tables in one migration; template file deleted.
 - **Skills CLI**: `npx skills add` skipped; see "Design skills" below.

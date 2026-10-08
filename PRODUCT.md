@@ -24,7 +24,7 @@ A departure board for money: deadlines ranked by days-left and priced by yearly 
 
 ## Operating Context
 
-- Email + password auth (magic link / OAuth dropped for v1).
+- Auth: email + password. Confirmation redirects use a configured site origin.
 - Default currency BDT (৳) at the DB level; per-item override exists; a settings page is future work.
 - Views: Money Map (treemap) and Board (ranked list); filters by category/urgency; item form dialog; unpriced shelf for items without cost.
 - Reminders via Edge Function + pg_cron are planned, not shipped.

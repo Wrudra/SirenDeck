@@ -49,7 +49,7 @@ export default async function SignupPage() {
             Open your ledger
           </h1>
           <p className="text-sm text-ink-muted">
-            Free during early access. No card required.
+            Free during early access. No card.
           </p>
         </div>
 

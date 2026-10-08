@@ -33,6 +33,18 @@ async function ownedItem(id: string): Promise<OwnedItemResult> {
   return { item: data, supabase };
 }
 
+async function categoryOwnedByUser(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  categoryId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("id", categoryId)
+    .maybeSingle();
+  return data != null;
+}
+
 /** FormData entries are strings; normalize to the shape itemInputSchema expects. */
 function parseFormValue(formData: FormData) {
   const amountRaw = formData.get("amount");
@@ -72,6 +84,11 @@ export async function addItem(
   const parsed = itemInputSchema.safeParse(parseFormValue(formData));
   if (!parsed.success) {
     return { ok: false, fieldErrors: zodFieldErrors(parsed.error) };
+  }
+
+  const ownedCategory = await categoryOwnedByUser(supabase, parsed.data.categoryId);
+  if (!ownedCategory) {
+    return { ok: false, fieldErrors: { categoryId: "Choose one of your categories." } };
   }
 
   const { data: inserted, error } = await supabase
@@ -125,6 +142,11 @@ export async function updateItem(
     return { ok: false, fieldErrors: zodFieldErrors(parsed.error) };
   }
 
+  const ownedCategory = await categoryOwnedByUser(supabase, parsed.data.categoryId);
+  if (!ownedCategory) {
+    return { ok: false, fieldErrors: { categoryId: "Choose one of your categories." } };
+  }
+
   const { error } = await supabase
     .from("items")
     .update({
@@ -153,7 +175,11 @@ export async function markDone(id: string): Promise<MutationResult> {
 
   const { error } = await result.supabase
     .from("items")
-    .update({ status: "done", completed_at: new Date().toISOString() })
+    .update({
+      status: "done",
+      completed_at: new Date().toISOString(),
+      snoozed_until: null,
+    })
     .eq("id", result.item.id);
   if (error) return { ok: false, error: "Could not mark done." };
 
