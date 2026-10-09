@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { Logo } from "@/components/brand/logo";
+
 export const metadata: Metadata = {
   title: "Sign-in link expired",
 };
@@ -11,9 +13,9 @@ export default function AuthCodeErrorPage() {
       <div className="mx-auto flex w-full max-w-md flex-col gap-4">
         <Link
           href="/"
-          className="text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          className="w-fit focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
-          SirenDeck
+          <Logo className="h-8" />
         </Link>
         <h1 className="text-4xl font-semibold tracking-[-0.03em]">That link has expired</h1>
         <p className="text-sm leading-relaxed text-ink-muted" style={{ textWrap: "pretty" }}>

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 
+import { Logo } from "@/components/brand/logo";
 import { createClient } from "@/lib/supabase/server";
 
 export function TopBar({ email }: { email: string }) {
@@ -12,10 +13,7 @@ export function TopBar({ email }: { email: string }) {
 
   return (
     <header className="chrome flex min-h-14 shrink-0 items-center justify-between border-b border-white/50 px-4 pt-[env(safe-area-inset-top)]">
-      <div className="flex items-baseline gap-2.5">
-        <span aria-hidden className="inline-block size-2.5 rounded-[4px] bg-ink" />
-        <span className="font-display text-lg font-semibold tracking-[-0.01em]">SirenDeck</span>
-      </div>
+      <Logo className="h-8" />
       <div className="flex items-center gap-3">
         <span className="hidden max-w-48 truncate text-xs text-ink-muted sm:inline" title={email}>
           {email}

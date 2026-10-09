@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ChevronDownIcon, SearchIcon, XIcon } from "lucide-react";
+import { SearchIcon, XIcon } from "lucide-react";
 
 import { cn } from "cn";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { CategoryRow } from "@/lib/validation/item";
 import type { ItemFilters } from "@/lib/filters";
 import { hasActiveFilters } from "@/lib/filters";
@@ -81,55 +88,52 @@ export function FilterBar({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [pending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
+  const searchRef = useRef(searchParams);
+  searchRef.current = searchParams;
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Local input state; syncs from URL when filters.q changes externally
-  // (back/forward, clear-all, chip removal) without fighting the debounce.
-  // setState-during-render is the React pattern for adjusting derived state;
-  // an effect here would cascade renders (and lint rejects it).
+  // The field owns what the user is typing. The URL is applied back only
+  // when focus is elsewhere (back/forward, clear, chip), so keystrokes
+  // are never replaced by a slower server render.
   const [q, setQ] = useState(filters.q);
   const [prevUrlQ, setPrevUrlQ] = useState(filters.q);
   if (filters.q !== prevUrlQ) {
     setPrevUrlQ(filters.q);
-    setQ(filters.q);
+    const focused =
+      typeof document !== "undefined" && document.activeElement === inputRef.current;
+    if (!focused) setQ(filters.q);
   }
 
-  const setParam = useMemo(() => {
-    return (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
-      for (const [key, value] of Object.entries(updates)) {
-        if (value == null || value === "") params.delete(key);
-        else params.set(key, value);
-      }
-      const qs = params.toString();
-      startTransition(() => {
-        router.push(qs ? `/app?${qs}` : "/app", { scroll: false });
-      });
-    };
-  }, [router, searchParams]);
+  const setParam = (updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchRef.current.toString());
+    for (const [key, value] of Object.entries(updates)) {
+      if (value == null || value === "" || value === "all") params.delete(key);
+      else params.set(key, value);
+    }
+    const qs = params.toString();
+    startTransition(() => {
+      router.replace(qs ? `/app?${qs}` : "/app", { scroll: false });
+    });
+  };
 
-  // Debounce keystrokes → URL updates (250ms).
   useEffect(() => {
     if (q === filters.q) return;
-    const t = setTimeout(() => setParam({ q: q || null }), 250);
-    return () => clearTimeout(t);
-  }, [q, filters.q, setParam]);
+    const handle = window.setTimeout(() => setParam({ q: q || null }), 200);
+    return () => window.clearTimeout(handle);
+    // setParam reads the latest params from a ref. Listing it would
+    // reschedule the debounce on every URL write.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, filters.q]);
 
   const chips = appliedChips(filters, categories);
   const filtering = hasActiveFilters(filters);
-
-  const selectCls =
-    "h-7 appearance-none rounded-[var(--radius-control)] border border-rule-input bg-surface pl-2 pr-6 text-xs text-ink outline-none transition-colors duration-150 hover:border-rule-strong focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-ink/50";
 
   return (
     <div
       role="region"
       aria-label="Filters"
-      aria-busy={pending}
-      className={cn(
-        "flex flex-col gap-2 border-b border-rule bg-surface px-3 py-2 transition-opacity duration-150 sm:flex-row sm:items-center sm:gap-2 sm:px-4 sm:py-2",
-        pending && "opacity-70",
-      )}
+      className="flex flex-col gap-2 border-b border-rule bg-surface px-3 py-2 sm:flex-row sm:items-center sm:gap-2 sm:px-4 sm:py-2"
     >
       <div className="flex min-w-0 items-center gap-2">
         {/* search */}
@@ -139,12 +143,16 @@ export function FilterBar({
             className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-ink-muted"
           />
           <input
+            ref={inputRef}
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search titles or notes…"
             aria-label="Search items"
-            className="h-7 w-full rounded-[var(--radius-control)] border border-rule-input bg-surface pl-7 pr-7 text-xs outline-none transition-colors duration-150 placeholder:text-ink-muted focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-ink/50 sm:w-44 [&::-webkit-search-cancel-button]:hidden"
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            className="h-7 w-full rounded-[var(--radius-control)] border border-rule-input bg-surface pl-7 pr-7 text-xs outline-none transition-colors duration-150 placeholder:text-ink-muted focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-ink/50 sm:w-56 [&::-webkit-search-cancel-button]:hidden"
           />
           {q && (
             <button
@@ -188,73 +196,45 @@ export function FilterBar({
         </div>
       </div>
 
-      {/* selects · horizontal scroll on narrow screens */}
       <div className="flex flex-wrap items-center gap-1.5 sm:flex-nowrap sm:overflow-x-auto sm:pb-0">
-        <label className="sr-only" htmlFor="filter-category">Category</label>
-        <div className="relative shrink-0">
-          <select
-            id="filter-category"
-            value={filters.categoryId ?? ""}
-            onChange={(e) => setParam({ category: e.target.value || null })}
-            className={cn(selectCls, filters.categoryId && "border-ink-muted/50")}
-          >
-            <option value="">All categories</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          <ChevronDownIcon aria-hidden className="pointer-events-none absolute right-1.5 top-1/2 size-3 -translate-y-1/2 text-ink-muted" />
-        </div>
-
-        <label className="sr-only" htmlFor="filter-urgency">Urgency</label>
-        <div className="relative shrink-0">
-          <select
-            id="filter-urgency"
-            value={filters.urgency ?? ""}
-            onChange={(e) => setParam({ urgency: e.target.value || null })}
-            className={cn(selectCls, filters.urgency && "border-ink-muted/50")}
-          >
-            <option value="">Any urgency</option>
-            {Object.entries(URGENCY_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-          <ChevronDownIcon aria-hidden className="pointer-events-none absolute right-1.5 top-1/2 size-3 -translate-y-1/2 text-ink-muted" />
-        </div>
-
-        <label className="sr-only" htmlFor="filter-renew">Renewal</label>
-        <div className="relative shrink-0">
-          <select
-            id="filter-renew"
-            value={filters.autoRenew == null ? "" : filters.autoRenew ? "yes" : "no"}
-            onChange={(e) =>
-              setParam({ renew: e.target.value === "" ? null : e.target.value })
-            }
-            className={cn(selectCls, filters.autoRenew != null && "border-ink-muted/50")}
-          >
-            <option value="">Any renewal</option>
-            <option value="yes">Auto-renew</option>
-            <option value="no">Manual</option>
-          </select>
-          <ChevronDownIcon aria-hidden className="pointer-events-none absolute right-1.5 top-1/2 size-3 -translate-y-1/2 text-ink-muted" />
-        </div>
-
-        <label className="sr-only" htmlFor="filter-window">Time window</label>
-        <div className="relative shrink-0">
-          <select
-            id="filter-window"
-            value={filters.window}
-            onChange={(e) =>
-              setParam({ window: e.target.value === "all" ? null : e.target.value })
-            }
-            className={cn(selectCls, filters.window !== "all" && "border-ink-muted/50")}
-          >
-            {Object.entries(WINDOW_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-          <ChevronDownIcon aria-hidden className="pointer-events-none absolute right-1.5 top-1/2 size-3 -translate-y-1/2 text-ink-muted" />
-        </div>
+        <FilterSelect
+          label="Category"
+          value={filters.categoryId ?? "all"}
+          active={Boolean(filters.categoryId)}
+          onChange={(value) => setParam({ category: value === "all" ? null : value })}
+          options={[
+            { value: "all", label: "All categories" },
+            ...categories.map((c) => ({ value: c.id, label: c.name })),
+          ]}
+        />
+        <FilterSelect
+          label="Urgency"
+          value={filters.urgency ?? "all"}
+          active={Boolean(filters.urgency)}
+          onChange={(value) => setParam({ urgency: value === "all" ? null : value })}
+          options={[
+            { value: "all", label: "Any urgency" },
+            ...Object.entries(URGENCY_LABELS).map(([value, label]) => ({ value, label })),
+          ]}
+        />
+        <FilterSelect
+          label="Renewal"
+          value={filters.autoRenew == null ? "all" : filters.autoRenew ? "yes" : "no"}
+          active={filters.autoRenew != null}
+          onChange={(value) => setParam({ renew: value === "all" ? null : value })}
+          options={[
+            { value: "all", label: "Any renewal" },
+            { value: "yes", label: "Auto-renew" },
+            { value: "no", label: "Manual" },
+          ]}
+        />
+        <FilterSelect
+          label="Time window"
+          value={filters.window}
+          active={filters.window !== "all"}
+          onChange={(value) => setParam({ window: value === "all" ? null : value })}
+          options={Object.entries(WINDOW_LABELS).map(([value, label]) => ({ value, label }))}
+        />
       </div>
 
       <div className="flex items-center justify-between gap-3 sm:ml-auto sm:justify-end">
@@ -305,5 +285,48 @@ export function FilterBar({
         </ul>
       )}
     </div>
+  );
+}
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  options,
+  active,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  active?: boolean;
+}) {
+  return (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger
+        size="sm"
+        aria-label={label}
+        className={cn(
+          "h-7 cursor-pointer rounded-[var(--radius-control)] border-rule-input bg-surface px-2 text-xs text-ink shadow-none",
+          "transition-colors duration-150 ease-[var(--ease-out)] hover:border-rule-strong",
+          "focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-ink/50",
+          active && "border-ink-muted/50",
+        )}
+      >
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent
+        position="popper"
+        align="start"
+        sideOffset={6}
+        className="rounded-[var(--radius-control)]"
+      >
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value} className="cursor-pointer text-xs">
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

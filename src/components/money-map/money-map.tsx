@@ -27,9 +27,7 @@ import {
 import { formatCost } from "@/lib/money";
 import { getUrgency } from "@/lib/urgency";
 import type { CategoryRow, ItemRow } from "@/lib/validation/item";
-import { MapLegend } from "./map-legend";
-import { MapTooltip } from "./map-tooltip";
-import { SummaryStrip } from "./summary-strip";
+import { MapTooltip, type TileBox } from "./map-tooltip";
 import { Tile, daysLabel } from "./tile";
 import { UnpricedShelf } from "./unpriced-shelf";
 
@@ -57,6 +55,16 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
   const [layoutMotion, setLayoutMotion] = useState(true);
   const [donePending, startDone] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
+  const hoverTimer = useRef<number | null>(null);
+
+  const setHover = useCallback((id: string | null) => {
+    if (hoverTimer.current != null) {
+      window.clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+    if (id) setHoveredId(id);
+    else hoverTimer.current = window.setTimeout(() => setHoveredId(null), 90);
+  }, []);
 
   useEffect(() => {
     const el = ref.current;
@@ -74,7 +82,8 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
     function onDown(e: PointerEvent) {
       const target = e.target;
       if (!(target instanceof Element)) return;
-      if (target.closest(`[data-tile-id="${selectedId}"]`)) return;
+      if (target.closest("[data-tile-id]")) return;
+      if (target.closest("[data-map-detail]")) return;
       setSelectedId(null);
     }
     document.addEventListener("pointerdown", onDown);
@@ -199,8 +208,25 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
   const closeEdit = useCallback(() => setEditingId(null), []);
   const onTileSelect = useCallback((id: string) => setSelectedId(id), []);
 
-  const activeId = hoveredId ?? selectedId ?? focusedId;
+  // A click pins the card. Hover only previews while nothing is pinned,
+  // so moving toward Done or Edit does not dismiss it.
+  const activeId = selectedId ?? hoveredId ?? focusedId;
   const activeItem = activeId ? (itemById.get(activeId) ?? null) : null;
+  const activeAnchor = useMemo<TileBox | null>(() => {
+    if (!activeId || !groupRects) return null;
+    for (const group of groupRects) {
+      for (const child of group.children) {
+        if (child.id !== activeId) continue;
+        return {
+          x: child.x + group.x,
+          y: child.y + group.y,
+          w: child.width,
+          h: child.height,
+        };
+      }
+    }
+    return null;
+  }, [activeId, groupRects]);
   const onDone = useCallback(() => {
     if (!activeItem) return;
     const id = activeItem.id;
@@ -281,7 +307,6 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
             )}
           </div>
         )}
-        <SummaryStrip model={model} />
         <div
           ref={ref}
           className="relative min-h-0 flex-1 overflow-hidden bg-heat-bg"
@@ -366,7 +391,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                         hot={child.id === hoveredId}
                         selected={child.id === selectedId}
                         layoutMotion={layoutMotion}
-                        onHoverChange={setHoveredId}
+                        onHoverChange={setHover}
                         onSelect={onTileSelect}
                         onOpen={openEdit}
                         onFocusChange={setFocusedId}
@@ -377,12 +402,15 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
               </AnimatePresence>
             </>
           )}
-          <MapLegend />
           <MapTooltip
             item={activeItem}
             category={activeItem ? categoryById.get(activeItem.categoryId) : undefined}
+            anchor={activeAnchor}
+            bounds={container}
             onDone={activeItem ? onDone : undefined}
+            onEdit={activeItem ? () => openEdit(activeItem.id) : undefined}
             donePending={donePending}
+            onHold={setHover}
           />
         </div>
         </>
@@ -395,7 +423,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
             {items.map((item) => {
               const { daysLeft, level } = getUrgency(item.due_date);
               return (
-                <li key={item.id}>
+                <li key={item.id} suppressHydrationWarning>
                   {item.title}: {level}, {daysLabel(daysLeft)}
                   {item.amount != null && `, ${formatCost(Number(item.amount), item.currency)}`}
                 </li>

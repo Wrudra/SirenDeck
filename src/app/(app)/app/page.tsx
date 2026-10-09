@@ -4,7 +4,7 @@ import { ItemFormDialog } from "@/components/items/item-form-dialog";
 import { ItemList } from "@/components/items/item-list";
 import { MoneyMap } from "@/components/money-map/money-map";
 import { FilterBar } from "@/components/shell/filter-bar";
-import { ViewTabs } from "@/components/shell/view-tabs";
+import { ViewProvider, ViewStage, ViewTabs } from "@/components/shell/view-tabs";
 import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getOrSeedCategories } from "@/lib/categories";
@@ -15,6 +15,14 @@ import type { ItemRow } from "@/lib/validation/item";
 
 export const dynamic = "force-dynamic";
 
+function queryString(params: { [key: string]: string | string[] | undefined }) {
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === "string") qs.set(key, value);
+  }
+  return qs.toString();
+}
+
 export default async function AppPage({
   searchParams,
 }: {
@@ -24,9 +32,6 @@ export default async function AppPage({
   const params = await searchParams;
   const filters = parseFilters(params);
   const view = typeof params.view === "string" ? params.view : null;
-  // No explicit view: CSS decides · board list under md, Money Map at md+.
-  const isList = view === "list";
-  const isMap = view === "map";
 
   const [categories, itemsResult] = await Promise.all([
     getOrSeedCategories(supabase, user.id),
@@ -42,49 +47,41 @@ export default async function AppPage({
   const items = applyFilters(allItems, filters);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <FilterBar
-        filters={filters}
-        categories={categories}
-        shownCount={items.length}
-        totalCount={allItems.length}
-      >
-        <ViewTabs />
-        <ItemFormDialog
+    <ViewProvider serverView={view} query={queryString(params)}>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <FilterBar
+          filters={filters}
           categories={categories}
-          trigger={
-            <Button
-              size="sm"
-              data-icon="inline-start"
-              id="add-item"
-              className="plate rounded-full border-transparent px-3 hover:bg-ink"
-            >
-              <PlusIcon />
-              Add
-            </Button>
-          }
-        />
-      </FilterBar>
+          shownCount={items.length}
+          totalCount={allItems.length}
+        >
+          <ViewTabs />
+          <ItemFormDialog
+            categories={categories}
+            trigger={
+              <Button
+                size="sm"
+                data-icon="inline-start"
+                id="add-item"
+                className="plate cursor-pointer rounded-full border-transparent px-3 hover:bg-ink"
+              >
+                <PlusIcon />
+                Add
+              </Button>
+            }
+          />
+        </FilterBar>
 
-      {items.length === 0 && hasActiveFilters(filters) ? (
-        <ZeroResults query={filters.q} view={view} />
-      ) : isList ? (
-        <ItemList items={items} categories={categories} />
-      ) : isMap ? (
-        <MoneyMap items={items} categories={categories} />
-      ) : (
-        /* No explicit view: CSS decides · board list under md, Money Map at md+.
-           Both render; each is display:none outside its breakpoint. */
-        <>
-          <div className="flex min-h-0 flex-1 flex-col md:hidden">
-            <ItemList items={items} categories={categories} />
-          </div>
-          <div className="hidden min-h-0 flex-1 flex-col md:flex">
-            <MoneyMap items={items} categories={categories} />
-          </div>
-        </>
-      )}
-    </div>
+        {items.length === 0 && hasActiveFilters(filters) ? (
+          <ZeroResults query={filters.q} view={view} />
+        ) : (
+          <ViewStage
+            list={<ItemList items={items} categories={categories} />}
+            map={<MoneyMap items={items} categories={categories} />}
+          />
+        )}
+      </div>
+    </ViewProvider>
   );
 }
 

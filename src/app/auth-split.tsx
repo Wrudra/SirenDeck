@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
+import { Logo } from "@/components/brand/logo";
+
 /**
  * Sign-in surfaces. The map sits on the left; the form is a column, not a card
  * floating in the middle of a blank page.
@@ -25,9 +27,9 @@ export function AuthSplit({
       <section className="relative hidden overflow-hidden bg-[#141416] text-white lg:flex lg:flex-col lg:justify-between lg:p-10">
         <Link
           href="/"
-          className="relative z-10 text-sm font-medium tracking-[-0.01em] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+          className="relative z-10 w-fit focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
         >
-          SirenDeck
+          <Logo onDark className="h-8" />
         </Link>
         <div className="relative z-10 max-w-md">
           <p className="text-4xl font-semibold tracking-[-0.03em] text-balance">
@@ -52,9 +54,9 @@ export function AuthSplit({
         <div className="flex items-center justify-between">
           <Link
             href="/"
-            className="text-sm font-medium lg:invisible focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="lg:invisible focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            SirenDeck
+            <Logo className="h-8" />
           </Link>
           <Link
             href={alternateHref}
