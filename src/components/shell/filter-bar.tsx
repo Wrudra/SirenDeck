@@ -125,7 +125,7 @@ export function FilterBar({
       aria-label="Filters"
       aria-busy={pending}
       className={cn(
-        "flex flex-col gap-2 border-b border-rule bg-surface px-3 py-2 transition-opacity duration-150 sm:h-10 sm:flex-row sm:items-center sm:gap-2 sm:px-4 sm:py-0",
+        "flex flex-col gap-2 border-b border-rule bg-surface px-3 py-2 transition-opacity duration-150 sm:flex-row sm:items-center sm:gap-2 sm:px-4 sm:py-2",
         pending && "opacity-70",
       )}
     >

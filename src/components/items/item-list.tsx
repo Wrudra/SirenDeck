@@ -150,13 +150,13 @@ export function ItemList({
                     "group/row grid grid-cols-[1.6rem_1fr_auto_auto] items-center gap-2 border-b border-rule px-2 py-2.5 last:border-b-0 sm:grid-cols-[2.25rem_minmax(0,1fr)_7rem_6.75rem_auto] sm:gap-3 sm:py-3",
                     "transition-[background-color] duration-150 ease-[var(--ease-standard)]",
                     overdue
-                      ? "border-l-2 border-l-ink bg-ink/[0.035] hover:bg-ink/[0.055]"
+                      ? "border-l-2 border-l-heat-overdue bg-heat-overdue/10 hover:bg-heat-overdue/15"
                       : "hover:bg-surface focus-within:bg-surface",
                   )}
                 >
                   <span
                     className={cn(
-                      "font-display text-lg leading-none font-semibold tabular",
+                      "text-xs leading-none font-medium tabular",
                       overdue ? "text-ink" : "text-ink-muted",
                     )}
                     aria-hidden
@@ -168,7 +168,7 @@ export function ItemList({
                     <span
                       aria-hidden
                       className={cn(
-                        "size-2.5 shrink-0 border",
+                        "size-2.5 shrink-0 rounded-full border",
                         overdue ? "border-ink" : "border-ink/15",
                         URGENCY_SWATCH[urgency.level],
                       )}
@@ -292,8 +292,8 @@ export function ItemList({
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="p-0" onSelect={(e) => e.preventDefault()}>
-                          <div className="flex flex-nowrap items-center">
-                            <span className="ledger-cap pl-2 pr-1 text-[9px] text-ink-muted">
+                          <div className="flex max-w-56 flex-wrap items-center gap-0.5 px-1 py-1">
+                            <span className="pr-1 text-[11px] text-ink-muted">
                               Snooze
                             </span>
                             {SNOOZE_OPTIONS.map((d) => (

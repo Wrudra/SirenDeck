@@ -1,42 +1,32 @@
 @import "tailwindcss";
 
-/* ── The Ink Ledger — design tokens ────────────────────────────────────
-   Premium heavy monochrome on warm paper. Near-black ink text, hairline
-   rules like ledger ruling, grayscale five-step urgency ramp (calm = pale
-   gray, past due = ink), editorial serif display over a quiet grotesque,
-   tabular mono figures. Direction: user-confirmed 2026-10-04. */
+/* Neutral system surfaces. Urgency on the map stays the heatmap.
+   Motion tokens below are the emilkowalski curves. */
 
 :root {
-  /* warm paper grounds — layered like stock weights */
-  --bg: #f7f5f0;
-  --surface: #fffdf9;
-  --surface-2: #efece4;
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --surface-2: #ececf1;
 
-  /* hairline rules — the ruling of the ledger */
-  --rule: #dcd7cb;
-  --rule-strong: #b8b2a3;
-  --rule-input: #8a867b;
+  --rule: #e5e5ea;
+  --rule-strong: #c7c7cc;
+  --rule-input: #aeaeb2;
 
-  /* near-black ink text; secondary tinted warm, never cool gray */
-  --ink: #141311;
-  --ink-muted: #676357;
+  --ink: #1d1d1f;
+  --ink-muted: #6e6e73;
 
-  /* interactive hairline: darker than a rule so field edges read (≥3:1) */
-  --rule-input: #8a867b;
+  /* Quiet ramp for chips on white. The map uses --heat-* instead. */
+  --urgency-calm: #e8e8ed;
+  --urgency-soon: #d1d1d6;
+  --urgency-urgent: #aeaeb2;
+  --urgency-critical: #48484a;
+  --urgency-overdue: #1d1d1f;
 
-  /* grayscale five-step urgency ramp — lightness IS urgency.
-     Calm sits pale; past due goes full ink. On-fill text tuned per step. */
-  --urgency-calm: #e4e0d5;      /* on: ink    */
-  --urgency-soon: #c9c3b4;      /* on: ink    */
-  --urgency-urgent: #a29b89;    /* on: ink    */
-  --urgency-critical: #4a463e;  /* on: paper  */
-  --urgency-overdue: #141311;   /* on: paper  */
-
-  --on-calm: #141311;
-  --on-soon: #141311;
-  --on-urgent: #141311;
-  --on-critical: #f7f5f0;
-  --on-overdue: #f7f5f0;
+  --on-calm: #1d1d1f;
+  --on-soon: #1d1d1f;
+  --on-urgent: #1d1d1f;
+  --on-critical: #f5f5f7;
+  --on-overdue: #ffffff;
 
   /* Heatmap mode — stock heat map: black gutters, green→red blocks, dark text. */
   --heat-bg: #111111;
@@ -50,19 +40,17 @@
   --heat-critical: #f08a4a;
   --heat-overdue: #ef5350;
 
-  /* text-safe twins for small chips directly on paper/surface */
-  --urgency-calm-text: #6e6a5f;
-  --urgency-soon-text: #5d594e;
-  --urgency-urgent-text: #45413a;
-  --urgency-critical-text: #2e2b26;
-  --urgency-overdue-text: #141311;
+  --urgency-calm-text: #6e6e73;
+  --urgency-soon-text: #515154;
+  --urgency-urgent-text: #3a3a3c;
+  --urgency-critical-text: #1d1d1f;
+  --urgency-overdue-text: #1d1d1f;
 
-  /* ink plate — the only CTA treatment: solid ink, paper text */
-  --accent: #141311;
-  --accent-ink: #f7f5f0;
-  --ring: #141311;
+  --accent: #1d1d1f;
+  --accent-ink: #ffffff;
+  --ring: #1d1d1f;
 
-  --destructive: #141311;
+  --destructive: #b42318;
 
   /* Motion tokens from emilkowalski/skills. One set; old names alias these. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -76,9 +64,9 @@
   --duration-menu: 180ms;
   --duration-modal: 220ms;
 
-  --radius-tile: 2px;
-  --radius-dialog: 6px;
-  --radius-control: 3px;
+  --radius-tile: 8px;
+  --radius-dialog: 14px;
+  --radius-control: 10px;
 
   /* shadcn/ui bridge — every value references a token above */
   --background: var(--bg);
@@ -96,7 +84,7 @@
   --accent-foreground: var(--accent-ink);
   --input: var(--rule);
   --border: var(--rule);
-  --radius: 3px;
+  --radius: 10px;
 }
 
 @theme inline {
@@ -159,9 +147,9 @@
 
   --font-mono-var: var(--font-mono), ui-monospace, monospace;
 
-  --radius-tile: 2px;
-  --radius-dialog: 6px;
-  --radius-control: 3px;
+  --radius-tile: 8px;
+  --radius-dialog: 14px;
+  --radius-control: 10px;
 
   --ease-standard: var(--ease-out);
   --ease-decelerate: var(--ease-out);
@@ -227,25 +215,15 @@ a,
   background: transparent;
 }
 
-/* ── Ledger vocabulary ────────────────────────────────────────────────── */
-
-/* Ledger label: tracked small caps in the grotesque — the voice of every
-   ruling, column head, and totals label. Never for sentences. */
+/* Quiet labels. Small text gets a little tracking, never small-caps. */
 .ledger-cap {
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
   font-weight: 560;
+  letter-spacing: 0.01em;
 }
 
-/* Ink plate: the CTA. Solid near-black ink with paper text, one offset
-   paper-emboss shadow — heavy, printed, never a glow. */
 .plate {
   background: var(--accent);
   color: var(--accent-ink);
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.08),
-    0 1px 0 #000000,
-    0 10px 24px -14px rgb(20 19 17 / 0.55);
 }
 
 .plate {

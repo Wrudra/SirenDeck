@@ -17,7 +17,7 @@ export default function AuthCodeErrorPage() {
             href="/"
             className="flex items-baseline gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            <span aria-hidden className="inline-block size-3 bg-ink" />
+            <span aria-hidden className="inline-block size-2.5 rounded-[4px] bg-ink" />
             <span className="font-display text-lg font-semibold tracking-[-0.01em]">
               SirenDeck
             </span>

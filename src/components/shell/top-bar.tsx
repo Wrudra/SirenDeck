@@ -13,7 +13,7 @@ export function TopBar({ email }: { email: string }) {
   return (
     <header className="chrome flex min-h-14 shrink-0 items-center justify-between border-b border-white/50 px-4 pt-[env(safe-area-inset-top)]">
       <div className="flex items-baseline gap-2.5">
-        <span aria-hidden className="mt-1 inline-block size-3 bg-ink" />
+        <span aria-hidden className="inline-block size-2.5 rounded-[4px] bg-ink" />
         <span className="font-display text-lg font-semibold tracking-[-0.01em]">SirenDeck</span>
       </div>
       <div className="flex items-center gap-3">

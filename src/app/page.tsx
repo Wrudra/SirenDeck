@@ -73,7 +73,7 @@ export default async function Home() {
       <header className="chrome sticky top-0 z-50 border-b border-white/50 pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link href="/" className="flex items-baseline gap-2.5">
-            <span aria-hidden className="inline-block size-3 bg-ink" />
+            <span aria-hidden className="inline-block size-2.5 rounded-[4px] bg-ink" />
             <span className="font-display text-xl font-semibold tracking-[-0.01em]">SirenDeck</span>
           </Link>
           <div className="flex items-center gap-6">
@@ -104,7 +104,7 @@ export default async function Home() {
         <section className="mx-auto max-w-6xl px-6 pt-20 pb-14 md:pt-28">
           <div className="grid items-end gap-10 lg:grid-cols-[1.15fr_1fr]">
             <Reveal>
-              <p className="ledger-cap text-[11px] text-ink-muted">The ledger of everything due</p>
+              <p className="text-[13px] font-medium text-ink-muted">What renews, and what it costs</p>
               <h1
                 className="font-display mt-4 max-w-[560px] text-[clamp(2.6rem,5.4vw,4.2rem)] leading-[1.02] font-semibold tracking-[-0.015em] text-balance"
               >
@@ -114,10 +114,9 @@ export default async function Home() {
                 className="mt-5 max-w-[520px] text-lg leading-relaxed text-ink-muted"
                 style={{ textWrap: "pretty" }}
               >
-                SirenDeck keeps a ledger of your money&rsquo;s deadlines. Each entry is sized
-                by what it costs you a year and shaded by how soon it comes due.
-                The nearer the date, the darker the ink. What renews soon sits
-                at the top of the page, already ranked.
+                SirenDeck keeps every deadline in one place. On the map, a tile
+                grows as the date gets closer, and color runs from green to red.
+                The list ranks the same entries by what is due next.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Link
@@ -146,18 +145,18 @@ export default async function Home() {
         </section>
 
         {/* ── The ramp: five shades, fixed · the second beat ──────────── */}
-        <section aria-labelledby="ramp-title" className="border-t-2 border-ink">
+        <section aria-labelledby="ramp-title" className="border-t border-rule">
           <div className="mx-auto max-w-6xl px-6 py-24">
             <Reveal as="h2" id="ramp-title" className="ledger-cap text-[11px] text-ink-muted">
               The five shades of due
             </Reveal>
-            <ol className="mt-10 grid grid-cols-2 gap-px overflow-hidden border border-ink bg-rule lg:grid-cols-5 sm:grid-cols-3">
+            <ol className="mt-10 grid grid-cols-2 gap-3 lg:grid-cols-5 sm:grid-cols-3">
               {RAMP.map((step, i) => (
-                <li key={step.label} className="bg-surface p-5">
+                <li key={step.label} className="rounded-[var(--radius-dialog)] bg-surface p-5 shadow-[0_1px_2px_rgb(0_0_0/0.04)]">
                   <span
                     aria-hidden
-                    className="block h-3 w-full"
-                    style={{ backgroundColor: `var(--urgency-${["calm", "soon", "urgent", "critical", "overdue"][i]})` }}
+                    className="block h-2 w-full rounded-full"
+                    style={{ backgroundColor: `var(--heat-${["calm", "soon", "urgent", "critical", "overdue"][i]})` }}
                   />
                   <span className="ledger-cap mt-4 block text-[10px] text-ink-muted">
                     {String(i + 1).padStart(2, "0")}
@@ -168,9 +167,8 @@ export default async function Home() {
               ))}
             </ol>
             <p className="mt-6 max-w-[520px] text-sm leading-relaxed text-ink-muted" style={{ textWrap: "pretty" }}>
-              Urgency is printed in ink, not alarm colors. The nearer a deadline,
-              the darker its shade. Past due is solid ink, impossible to miss
-              and impossible to misread.
+              Color is the same scale as the map. Green is calm, red is past due,
+              and the label is always there so the color is never the only cue.
             </p>
           </div>
         </section>
@@ -189,14 +187,14 @@ export default async function Home() {
               </p>
             </Reveal>
             <Reveal delayMs={100}>
-              <ul className="divide-y divide-rule border-y border-ink">
+              <ul className="divide-y divide-rule overflow-hidden rounded-[var(--radius-dialog)] border border-rule bg-surface">
                 {TRACKABLE.map((t, i) => (
-                  <li key={t} className="grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-3 bg-bg py-3">
+                  <li key={t} className="grid grid-cols-[2.5rem_1fr_auto] items-baseline gap-3 px-4 py-3">
                     <span className="ledger-cap tabular text-[10px] text-ink-muted" aria-hidden>
                       {String(i + 1).padStart(2, "0")}
                     </span>
                     <span className="text-sm font-medium">{t}</span>
-                    <span aria-hidden className="ml-3 hidden h-2 w-16 sm:block" style={{ backgroundColor: `var(--urgency-${["calm", "soon", "urgent", "critical", "overdue"][i % 5]})` }} />
+                    <span aria-hidden className="ml-3 hidden h-2 w-16 rounded-full sm:block" style={{ backgroundColor: `var(--heat-${["calm", "soon", "urgent", "critical", "overdue"][i % 5]})` }} />
                   </li>
                 ))}
               </ul>

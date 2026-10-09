@@ -219,7 +219,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         <p
           id={formErrorId}
           role="alert"
-          className="rounded-[var(--radius-control)] border border-ink border-l-[3px] bg-surface-2 px-3 py-2 text-xs font-medium text-ink"
+          className="rounded-[var(--radius-control)] border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
         >
           {error}
         </p>

@@ -125,7 +125,7 @@ export function DepartureBoard() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="overflow-hidden border border-rule bg-heat-bg">
+      <div className="overflow-hidden rounded-[var(--radius-dialog)] border border-rule bg-heat-bg shadow-[0_8px_24px_rgb(0_0_0/0.08)]">
         {/* heatmap header rail */}
         <div className="flex items-center justify-between border-b border-heat-rule px-4 py-2.5">
           <p className="ledger-cap text-[10px] text-white/55">

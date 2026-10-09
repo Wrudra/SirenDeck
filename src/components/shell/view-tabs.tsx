@@ -43,7 +43,7 @@ export function ViewTabs() {
   };
 
   const cls = (isActive: boolean) =>
-    `ledger-cap inline-flex h-8 items-center gap-1.5 border-b-2 px-2.5 text-[10px] transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+    `inline-flex h-8 items-center gap-1.5 border-b-2 px-2.5 text-sm font-medium transition-colors duration-150 ease-[var(--ease-out)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
       isActive
         ? "border-ink text-ink"
         : "border-transparent text-ink-muted hover:text-ink"
