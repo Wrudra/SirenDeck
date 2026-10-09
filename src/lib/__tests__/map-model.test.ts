@@ -63,7 +63,7 @@ describe("buildMapModel", () => {
     expect(weights[2]).toBeGreaterThan(weights[3]);
   });
 
-  it("same deadline ties break by yearly cost, then id", () => {
+  it("same deadline ties break by entered amount, then id", () => {
     const model = buildMapModel(
       [
         item({ id: "b", amount: "10", due_date: "2026-10-20" }),
@@ -92,8 +92,8 @@ describe("buildMapModel", () => {
   it("computes per-currency totals including 30d and overdue splits", () => {
     const model = buildMapModel(
       [
-        item({ id: "a", amount: "100", recurrence: "monthly", due_date: "2026-10-10" }), // 1200/yr, due in 6d
-        item({ id: "b", amount: "50", due_date: "2026-09-01" }), // 50/yr, overdue
+        item({ id: "a", amount: "100", recurrence: "monthly", due_date: "2026-10-10" }), // due in 6d
+        item({ id: "b", amount: "50", due_date: "2026-09-01" }), // overdue
         item({ id: "c", amount: "10", currency: "USD", due_date: "2027-01-01" }),
         item({ id: "d", amount: null, due_date: "2026-10-10" }),
       ],
@@ -101,8 +101,8 @@ describe("buildMapModel", () => {
     );
 
     const bdt = model.totals.find((t) => t.currency === "BDT")!.line;
-    expect(bdt.totalYearly).toBe(1250);
-    expect(bdt.dueIn30).toBe(1200);
+    expect(bdt.totalYearly).toBe(150);
+    expect(bdt.dueIn30).toBe(100);
     expect(bdt.overdue).toBe(50);
 
     const usd = model.totals.find((t) => t.currency === "USD")!.line;
@@ -135,11 +135,11 @@ describe("buildMapModel", () => {
     expect(model.other).toMatchObject({ count: 1, yearCost: 99999 });
   });
 
-  it("totals yearly cost per category and currency, ignoring unpriced", () => {
+  it("totals the entered amount per category and currency, ignoring unpriced", () => {
     const model = buildMapModel(
       [
         item({ id: "a", category_id: "ins", amount: "200000" }),
-        item({ id: "b", category_id: "ins", amount: "3500", recurrence: "monthly" }), // 42,000/yr
+        item({ id: "b", category_id: "ins", amount: "3500", recurrence: "monthly" }),
         item({ id: "c", category_id: "ins", amount: null }),
         item({ id: "d", category_id: "subs", amount: "10", currency: "USD", recurrence: "monthly" }),
         item({ id: "e", category_id: "subs", amount: "500", recurrence: "monthly" }),
@@ -147,10 +147,10 @@ describe("buildMapModel", () => {
       NOW,
     );
 
-    expect(model.categoryTotals.get("ins")).toEqual([{ currency: "BDT", total: 242_000 }]);
+    expect(model.categoryTotals.get("ins")).toEqual([{ currency: "BDT", total: 203_500 }]);
     expect(model.categoryTotals.get("subs")).toEqual([
-      { currency: "BDT", total: 6000 },
-      { currency: "USD", total: 120 },
+      { currency: "BDT", total: 500 },
+      { currency: "USD", total: 10 },
     ]);
   });
 

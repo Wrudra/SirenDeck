@@ -70,6 +70,9 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
     else hoverTimer.current = window.setTimeout(() => setHoveredId(null), 90);
   }, []);
 
+  // The canvas is not in the tree while the map is empty, so this has to
+  // run again when the first item arrives. A mount-only effect never sees it.
+  const hasItems = items.length > 0;
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -79,7 +82,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [hasItems]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -216,9 +219,10 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
   const closeEdit = useCallback(() => setEditingId(null), []);
   const onTileSelect = useCallback((id: string) => setSelectedId(id), []);
 
-  // A click pins the card. Hover only previews while nothing is pinned,
-  // so moving toward Done or Edit does not dismiss it.
-  const activeId = selectedId ?? hoveredId ?? focusedId;
+  // One item has no neighbor to sit beside, so the card stays at the top.
+  // Otherwise a click pins the card, and hover only previews while nothing is pinned.
+  const solo = model.tiles.length === 1 && model.other == null;
+  const activeId = solo ? model.tiles[0].id : (selectedId ?? hoveredId ?? focusedId);
   const activeItem = activeId ? (itemById.get(activeId) ?? null) : null;
   const activeAnchor = useMemo<TileBox | null>(() => {
     if (!activeId || !groupRects) return null;
@@ -407,6 +411,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
             category={activeItem ? categoryById.get(activeItem.categoryId) : undefined}
             anchor={activeAnchor}
             bounds={container}
+            pinned={solo}
             onDone={activeItem ? onDone : undefined}
             onEdit={activeItem ? () => openEdit(activeItem.id) : undefined}
             donePending={donePending}

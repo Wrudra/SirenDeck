@@ -23,7 +23,7 @@ import { cn } from "cn";
 import { deleteItem, markDone, snoozeItem } from "@/lib/actions/items";
 import type { UrgencyLevel } from "@/lib/urgency";
 import { getUrgency } from "@/lib/urgency";
-import { formatCost, yearlyCost } from "@/lib/money";
+import { formatCost } from "@/lib/money";
 import type { CategoryRow, ItemRow } from "@/lib/validation/item";
 
 const SNOOZE_OPTIONS = [1, 3, 7, 14, 30] as const;
@@ -116,11 +116,8 @@ export function ItemList({
             {items.map((item) => {
               const urgency = getUrgency(item.due_date);
               const overdue = urgency.level === "overdue";
-              const yearCost = yearlyCost({
-                amount: Number(item.amount),
-                recurrence: item.recurrence,
-              });
-              const cost = formatCost(yearCost, item.currency);
+              const cost =
+                item.amount == null ? null : formatCost(Number(item.amount), item.currency);
               const category = categoryById.get(item.category_id);
 
               return (

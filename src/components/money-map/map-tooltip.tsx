@@ -6,6 +6,7 @@ import { CheckIcon, PencilIcon } from "lucide-react";
 import { cn } from "cn";
 import type { CategoryRow } from "@/lib/validation/item";
 import type { MapItem } from "@/lib/map/map-model";
+import { formatCost } from "@/lib/money";
 import { daysLabel, URGENCY_FILL } from "./tile";
 
 const CARD_W = 248;
@@ -14,6 +15,14 @@ const GAP = 10;
 const EASE = [0.23, 1, 0.32, 1] as const;
 
 export type TileBox = { x: number; y: number; w: number; h: number };
+
+/** One tile fills the map, so the card sits centered on the top edge and stays put. */
+export function placeTopCenter(bounds: { w: number; h: number }): { x: number; y: number } {
+  return {
+    x: Math.max(8, (bounds.w - CARD_W) / 2),
+    y: Math.min(40, Math.max(8, bounds.h - CARD_H - 8)),
+  };
+}
 
 /** Place the card on the side of the tile that has room, then clamp it inside the map. */
 export function placeBeside(
@@ -34,14 +43,15 @@ export function placeBeside(
 }
 
 /**
- * Detail card. It sits beside the tile under the pointer and moves with it.
- * The map does not resize.
+ * Detail card. Beside the tile under the pointer, unless this is the only
+ * item: then it stays centered at the top. The map does not resize.
  */
 export function MapTooltip({
   item,
   category,
   anchor,
   bounds,
+  pinned = false,
   onDone,
   onEdit,
   donePending,
@@ -51,14 +61,22 @@ export function MapTooltip({
   category: CategoryRow | undefined;
   anchor: TileBox | null;
   bounds: { w: number; h: number } | null;
+  /** Keep the card at the top center. Used when the map has a single item. */
+  pinned?: boolean;
   onDone?: () => void;
   onEdit?: () => void;
   donePending?: boolean;
   onHold?: (id: string | null) => void;
 }) {
   const reduced = useReducedMotion();
-  const open = Boolean(item && anchor && bounds && bounds.w > 0);
-  const pos = open && anchor && bounds ? placeBeside(anchor, bounds) : { x: 0, y: 0 };
+  const open = Boolean(item && bounds && bounds.w > 0 && (pinned || anchor));
+  const pos = !open || !bounds
+    ? { x: 0, y: 0 }
+    : pinned
+      ? placeTopCenter(bounds)
+      : anchor
+        ? placeBeside(anchor, bounds)
+        : { x: 0, y: 0 };
   const fill = item ? URGENCY_FILL[item.urgency] : "";
   const move = reduced ? { duration: 0 } : { duration: 0.14, ease: EASE };
 
@@ -93,8 +111,8 @@ export function MapTooltip({
             className="mt-2 text-sm font-medium tabular"
             style={{ fontFamily: "var(--font-mono-var)" }}
           >
-            {item.yearCost != null && item.yearCost > 0
-              ? `${item.currency} ${item.yearCost.toLocaleString("en-US")}`
+            {item.amount != null && item.amount > 0
+              ? formatCost(item.amount, item.currency)
               : "No amount"}
             <span className="ml-2 font-normal text-ink-muted">{item.dueDate}</span>
           </p>

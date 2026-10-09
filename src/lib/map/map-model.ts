@@ -1,5 +1,5 @@
 import { deadlineWeight } from "@/lib/map/deadline-weight";
-import { yearlyCost, type Recurrence } from "@/lib/money";
+import type { Recurrence } from "@/lib/money";
 import { getUrgency, type UrgencyLevel } from "@/lib/urgency";
 import type { Currency, ItemRow } from "@/lib/validation/item";
 
@@ -9,7 +9,7 @@ export interface MapItem {
   id: string;
   title: string;
   categoryId: string;
-  /** null = unpriced (goes to the shelf) */
+  /** Entered amount. Null when unpriced. Recurrence does not scale it. */
   yearCost: number | null;
   amount: number | null;
   currency: Currency;
@@ -53,9 +53,9 @@ export interface MapModel {
   /** totals per currency code */
   totals: { currency: Currency; line: SummaryLine }[];
   /**
-   * categoryId → yearly cost of every priced item in that category, one
+   * categoryId → entered amount of every priced item in that category, one
    * entry per currency (largest first). Includes items merged past the tile
-   * cap, so a section title shows the category's true yearly total.
+   * cap, so a section title shows the sum of what was typed.
    */
   categoryTotals: Map<string, CurrencyTotal[]>;
   itemCount: number;
@@ -63,7 +63,7 @@ export interface MapModel {
 
 function toMapItem(item: ItemRow, now: Date): MapItem {
   const amount = item.amount == null ? null : Number(item.amount);
-  const yearCost = yearlyCost({ amount, recurrence: item.recurrence });
+  const yearCost = amount;
   const { daysLeft, level } = getUrgency(item.due_date, now);
 
   return {
@@ -83,7 +83,7 @@ function toMapItem(item: ItemRow, now: Date): MapItem {
 }
 
 /**
- * Soonest deadline first. Same day: higher yearly cost, then id.
+ * Soonest deadline first. Same day: higher entered amount, then id.
  * The tile cap keeps this prefix, so a cheap item due tomorrow is never
  * dropped to keep an expensive one due next year.
  */
@@ -162,7 +162,7 @@ function sortTotals(sums: Map<Currency, number>): CurrencyTotal[] {
 }
 
 /**
- * Yearly total across several categories (the synthetic Other section),
+ * Entered-amount total across several categories (the synthetic Other section),
  * still split per currency · amounts in different currencies never mix.
  */
 export function sumCategoryTotals(

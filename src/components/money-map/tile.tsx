@@ -123,7 +123,7 @@ function TileInner({
   const roomy = showTitle && width >= 148 && height >= 120;
   const centered = !showTitle;
   const radius = Math.max(8, Math.min(18, width / 5, height / 5));
-  const label = `${title}, ${daysLabel(daysLeft)}, due ${formatDueDate(dueDate)}${cost ? `, ${cost} per year` : ""}${categoryName ? `, ${categoryName}` : ""}`;
+  const label = `${title}, ${daysLabel(daysLeft)}, due ${formatDueDate(dueDate)}${cost ? `, ${cost}` : ""}${categoryName ? `, ${categoryName}` : ""}`;
 
   return (
     <motion.button
