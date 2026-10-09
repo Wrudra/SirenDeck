@@ -48,14 +48,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!password) {
     return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
   }
-  if (
-    mode === "signup" &&
-    (password.length < 10 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password))
-  ) {
-    return NextResponse.json(
-      { error: "Use at least 10 characters, with a lowercase letter, an uppercase letter, and a digit." },
-      { status: 400 },
-    );
+  if (mode === "signup" && password.length < 10) {
+    return NextResponse.json({ error: "Use at least 10 characters." }, { status: 400 });
   }
 
   const turnstileToken = typeof body.turnstileToken === "string" ? body.turnstileToken : "";
@@ -85,15 +79,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (error) {
       return NextResponse.json({ error: SIGN_UP_ERROR }, { status: 400 });
     }
-    return NextResponse.json({
-      ok: true,
-      needsConfirmation: !data.session,
-    });
+    // A session means the account is usable now, so no email was sent.
+    // A new unconfirmed user has an identity. An existing address comes back
+    // with an empty identity list and no message, so don't claim one was sent.
+    const emailSent = !data.session && (data.user?.identities?.length ?? 0) > 0;
+    const status = data.session ? "signed-in" : emailSent ? "email-sent" : "no-email";
+    return NextResponse.json({ ok: true, status });
   }
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     return NextResponse.json({ error: SIGN_IN_ERROR }, { status: 401 });
   }
-  return NextResponse.json({ ok: true, needsConfirmation: false });
+  return NextResponse.json({ ok: true, status: "signed-in" });
 }

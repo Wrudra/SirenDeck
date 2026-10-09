@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 import { useEffect, useId, useRef, useState } from "react";
@@ -40,7 +41,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [notice, setNotice] = useState(false);
+  const [notice, setNotice] = useState<"email-sent" | "signed-in" | "no-email" | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const turnstileRef = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
@@ -84,9 +85,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
     if (value === "") return "Enter your password.";
     if (mode !== "signup") return null;
     if (value.length < 10) return "Use at least 10 characters.";
-    if (!/[a-z]/.test(value) || !/[A-Z]/.test(value) || !/\d/.test(value)) {
-      return "Use a lowercase letter, an uppercase letter, and a digit.";
-    }
     return null;
   }
 
@@ -107,7 +105,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
     });
     const data = (await res.json().catch(() => ({}))) as {
       error?: string;
-      needsConfirmation?: boolean;
+      status?: "email-sent" | "signed-in" | "no-email";
     };
     if (!res.ok) {
       throw new Error(data.error ?? "Connection failed. Please try again.");
@@ -122,9 +120,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
     const passwordMsg = passwordError(password);
     if (emailMsg) errs.email = emailMsg;
     if (passwordMsg) errs.password = passwordMsg;
-    setFieldErrors(errs);
     if (!siteKey) errs.turnstile = "Sign-in is not configured.";
     else if (!turnstileToken) errs.turnstile = "Confirm you are human, then try again.";
+    setFieldErrors(errs);
     if (Object.keys(errs).length > 0) {
       document.getElementById(errs.email ? "email" : "password")?.focus();
       return;
@@ -137,8 +135,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
         password,
         turnstileToken: turnstileToken ?? "",
       });
-      if (data.needsConfirmation) {
-        setNotice(true);
+      if (
+        mode === "signup" &&
+        (data.status === "email-sent" || data.status === "no-email" || data.status === "signed-in")
+      ) {
+        setNotice(data.status);
         return;
       }
       router.replace("/app");
@@ -152,13 +153,50 @@ export function AuthForm({ mode }: { mode: Mode }) {
   }
 
   if (notice) {
+    const sent = notice === "email-sent";
+    const ready = notice === "signed-in";
     return (
-      <div className="w-full rounded-[var(--radius-dialog)] border border-rule bg-surface p-5 text-center sm:p-6">
-        <p className="ledger-cap text-[10px] text-ink-muted">Check your inbox</p>
-        <p className="mt-3 text-sm leading-relaxed text-ink-muted" style={{ textWrap: "pretty" }}>
-          We sent a confirmation link to <span className="font-medium text-ink">{email}</span>.
-          Click it, then sign in here.
+      <div role="status" className="flex w-full flex-col gap-4">
+        <h2 className="text-xl font-semibold tracking-[-0.03em]">
+          {sent ? "Check your email" : ready ? "Account created" : "No email was sent"}
+        </h2>
+        <p className="text-sm leading-relaxed text-ink" style={{ textWrap: "pretty" }}>
+          {sent ? (
+            <>
+              We sent a confirmation link to <span className="font-medium">{email}</span>. Open it,
+              then sign in.
+            </>
+          ) : ready ? (
+            "Your account is ready. No confirmation email was needed."
+          ) : (
+            <>
+              Nothing was sent to <span className="font-medium">{email}</span>. If you already have
+              an account, sign in.
+            </>
+          )}
         </p>
+        {sent && (
+          <p className="text-sm text-ink-muted">Nothing arrived? Check spam, then try signing in.</p>
+        )}
+        {ready ? (
+          <button
+            type="button"
+            onClick={() => {
+              router.replace("/app");
+              router.refresh();
+            }}
+            className="plate h-11 w-full rounded-full text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            Open your map
+          </button>
+        ) : (
+          <Link
+            href="/login"
+            className="plate inline-flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            Sign in
+          </Link>
+        )}
       </div>
     );
   }
@@ -275,7 +313,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           </p>
         ) : mode === "signup" ? (
           <p id="password-hint" className="text-xs text-ink-muted">
-            At least 10 characters, with a lowercase letter, an uppercase letter, and a digit.
+            At least 10 characters.
           </p>
         ) : null}
       </div>
