@@ -123,7 +123,7 @@ export default async function Home() {
                   href="/signup"
                   className="plate inline-flex h-11 items-center justify-center rounded-[var(--radius-control)] px-5 text-base font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
-                  Open your free ledger
+                  Create a free account
                 </Link>
                 <Link
                   href="/login"
@@ -237,13 +237,13 @@ export default async function Home() {
                 Stop paying for things you forgot about
               </h2>
               <p className="mx-auto mt-4 max-w-[560px] text-base leading-relaxed text-ink-muted" style={{ textWrap: "pretty" }}>
-                Open your ledger in ten minutes. Sleep better tonight.
+                Add the deadlines you keep forgetting. It takes a few minutes.
               </p>
               <Link
                 href="/signup"
                 className="plate mt-8 inline-flex h-11 items-center rounded-[var(--radius-control)] px-6 text-base font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
-                Open your free ledger
+                Create a free account
               </Link>
               <p className="mt-4 text-xs tracking-wide text-ink-muted">
                 Free during early access · Cancel anytime

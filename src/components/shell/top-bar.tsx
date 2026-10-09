@@ -17,16 +17,13 @@ export function TopBar({ email }: { email: string }) {
         <span className="font-display text-lg font-semibold tracking-[-0.01em]">SirenDeck</span>
       </div>
       <div className="flex items-center gap-3">
-        <span
-          className="ledger-cap hidden max-w-48 truncate text-[9px] text-ink-muted sm:inline"
-          title={email}
-        >
+        <span className="hidden max-w-48 truncate text-xs text-ink-muted sm:inline" title={email}>
           {email}
         </span>
         <form action={signOut}>
           <button
             type="submit"
-            className="rounded-[var(--radius-control)] border border-rule-strong px-3 py-1.5 text-sm text-ink-muted transition-colors duration-150 hover:border-ink/50 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+            className="rounded-full px-3 py-1.5 text-sm text-ink-muted transition-colors duration-150 hover:bg-surface-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
           >
             Sign out
           </button>

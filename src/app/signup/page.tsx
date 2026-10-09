@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { AuthForm } from "../auth-form";
+import { AuthSplit } from "../auth-split";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -18,59 +18,14 @@ export default async function SignupPage() {
   if (user) redirect("/app");
 
   return (
-    <main
-      id="main-content"
-      className="app-frame flex min-h-svh flex-col bg-bg text-ink"
+    <AuthSplit
+      title="Create an account"
+      lede="Free while SirenDeck is in early access. No card."
+      prompt="Already have one?"
+      alternateHref="/login"
+      alternateLabel="Sign in"
     >
-      <header className="chrome border-b border-white/50 pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex h-14 max-w-sm items-center justify-between px-6">
-          <Link
-            href="/"
-            className="flex items-baseline gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            <span aria-hidden className="inline-block size-2.5 rounded-[4px] bg-ink" />
-            <span className="font-display text-lg font-semibold tracking-[-0.01em]">
-              SirenDeck
-            </span>
-          </Link>
-          <Link
-            href="/login"
-            className="text-sm text-ink-muted transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            Sign in
-          </Link>
-        </div>
-      </header>
-
-      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-6 py-12">
-        <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-ink-muted">Create account</p>
-          <h1 className="font-display text-3xl font-semibold tracking-[-0.01em]">
-            Open your ledger
-          </h1>
-          <p className="text-sm text-ink-muted">
-            Free during early access. No card.
-          </p>
-        </div>
-
-        <AuthForm mode="signup" />
-
-        <p className="text-center text-sm text-ink-muted">
-          Already have an account?{" "}
-          <Link
-            href="/login"
-            className="font-medium underline decoration-rule-strong underline-offset-4 hover:decoration-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            Sign in
-          </Link>
-        </p>
-        <Link
-          href="/"
-          className="mx-auto text-xs text-ink-muted transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        >
-          Back to home
-        </Link>
-      </div>
-    </main>
+      <AuthForm mode="signup" />
+    </AuthSplit>
   );
 }

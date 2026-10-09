@@ -110,10 +110,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
       noValidate
       aria-busy={pending || undefined}
       aria-describedby={error ? formErrorId : undefined}
-      className="flex w-full flex-col gap-4 rounded-[var(--radius-dialog)] border border-rule bg-surface p-5 sm:p-6"
+      className="flex w-full flex-col gap-5"
     >
       <div className="grid gap-1.5">
-        <label htmlFor="email" className="ledger-cap text-[10px] text-ink-muted">
+        <label htmlFor="email" className="text-sm font-medium">
           Email
         </label>
         <input
@@ -156,7 +156,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       </div>
 
       <div className="grid gap-1.5">
-        <label htmlFor="password" className="ledger-cap text-[10px] text-ink-muted">
+        <label htmlFor="password" className="text-sm font-medium">
           Password
         </label>
         <div className="relative">
@@ -228,7 +228,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       <button
         type="submit"
         disabled={pending}
-        className="plate h-11 w-full rounded-[var(--radius-control)] text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50"
+        className="plate h-11 w-full rounded-full text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50"
       >
         {pending
           ? mode === "signup"

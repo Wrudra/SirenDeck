@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ChevronDownIcon, SearchIcon, XIcon } from "lucide-react";
 
@@ -71,11 +71,13 @@ export function FilterBar({
   categories,
   shownCount,
   totalCount,
+  children,
 }: {
   filters: ItemFilters;
   categories: CategoryRow[];
   shownCount: number;
   totalCount: number;
+  children?: ReactNode;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -255,10 +257,9 @@ export function FilterBar({
         </div>
       </div>
 
-      {/* count + clear · desktop */}
-      <div className="ml-auto hidden items-center gap-2 sm:flex">
+      <div className="flex items-center justify-between gap-3 sm:ml-auto sm:justify-end">
         {filtering && (
-          <>
+          <div className="hidden items-center gap-2 sm:flex">
             <span className="tabular text-xs text-ink-muted" style={{ fontFamily: "var(--font-mono-var)" }}>
               {shownCount} of {totalCount}
             </span>
@@ -277,8 +278,9 @@ export function FilterBar({
               <XIcon className="size-3" aria-hidden />
               Clear all
             </button>
-          </>
+          </div>
         )}
+        {children}
       </div>
 
       {/* applied chips */}

@@ -109,7 +109,7 @@ export function ItemFormDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {trigger && <DialogTrigger asChild>{trigger}</DialogTrigger>}
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="gap-5 rounded-3xl p-5 sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{isEdit ? "Edit item" : "Add item"}</DialogTitle>
             <DialogDescription>
@@ -121,7 +121,7 @@ export function ItemFormDialog({
             {isEdit && <input type="hidden" name="id" value={item.id} />}
 
             <div className="grid gap-1.5">
-              <Label htmlFor={`${uid}-title`} className="ledger-cap text-[10px] text-ink-muted">
+              <Label htmlFor={`${uid}-title`} className="text-sm font-medium text-ink">
                 Title
               </Label>
               <Input
@@ -144,7 +144,7 @@ export function ItemFormDialog({
             </div>
 
             <div className="grid gap-1.5">
-              <Label htmlFor={`${uid}-category`} className="ledger-cap text-[10px] text-ink-muted">
+              <Label htmlFor={`${uid}-category`} className="text-sm font-medium text-ink">
                 Category
               </Label>
               <Select name="categoryId" defaultValue={item?.categoryId ?? categories[0]?.id}>
@@ -163,7 +163,7 @@ export function ItemFormDialog({
             </div>
 
             <div className="grid gap-1.5">
-              <Label htmlFor={`${uid}-due`} className="ledger-cap text-[10px] text-ink-muted">
+              <Label htmlFor={`${uid}-due`} className="text-sm font-medium text-ink">
                 Due date
               </Label>
               <Input
@@ -187,11 +187,11 @@ export function ItemFormDialog({
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-1.5">
-                <Label htmlFor={`${uid}-amount`} className="ledger-cap text-[10px] text-ink-muted">
-                  Amount
-                </Label>
+            <div className="grid gap-1.5">
+              <Label htmlFor={`${uid}-amount`} className="text-sm font-medium text-ink">
+                Amount
+              </Label>
+              <div className="flex items-center overflow-hidden rounded-[var(--radius-control)] border border-rule-input bg-surface focus-within:border-ink focus-within:ring-2 focus-within:ring-ink/50">
                 <Input
                   id={`${uid}-amount`}
                   name="amount"
@@ -199,31 +199,23 @@ export function ItemFormDialog({
                   min="0"
                   step="0.01"
                   inputMode="decimal"
-                  placeholder="e.g. 1200"
+                  placeholder="0.00"
                   defaultValue={item?.amount ?? undefined}
-                  className={`${fieldCls} tabular`}
+                  className="h-10 flex-1 border-0 bg-transparent tabular shadow-none focus-visible:ring-0"
                   style={{ fontFamily: "var(--font-mono-var)" }}
                   aria-describedby={
                     state.fieldErrors?.amount ? `${uid}-amount-err` : `${uid}-amount-hint`
                   }
                   aria-invalid={state.fieldErrors?.amount ? true : undefined}
                 />
-                {state.fieldErrors?.amount ? (
-                  <p id={`${uid}-amount-err`} className="text-xs text-ink">
-                    {state.fieldErrors.amount}
-                  </p>
-                ) : (
-                  <p id={`${uid}-amount-hint`} className="text-xs text-ink-muted">
-                    Optional. A blank amount still appears on the map.
-                  </p>
-                )}
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor={`${uid}-currency`} className="ledger-cap text-[10px] text-ink-muted">
+                <Label htmlFor={`${uid}-currency`} className="sr-only">
                   Currency
                 </Label>
                 <Select name="currency" defaultValue={item?.currency ?? "BDT"}>
-                  <SelectTrigger id={`${uid}-currency`} className={fieldCls}>
+                  <SelectTrigger
+                    id={`${uid}-currency`}
+                    className="h-10 w-[5.5rem] rounded-none border-0 border-l border-rule-input bg-surface-2 shadow-none focus-visible:ring-0"
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="rounded-[var(--radius-control)] border-rule">
@@ -233,6 +225,15 @@ export function ItemFormDialog({
                   </SelectContent>
                 </Select>
               </div>
+              {state.fieldErrors?.amount ? (
+                <p id={`${uid}-amount-err`} className="text-xs text-ink">
+                  {state.fieldErrors.amount}
+                </p>
+              ) : (
+                <p id={`${uid}-amount-hint`} className="text-xs text-ink-muted">
+                  Optional. Leave it blank and the tile still appears.
+                </p>
+              )}
             </div>
 
             <div className="grid gap-2">
@@ -248,7 +249,7 @@ export function ItemFormDialog({
               </label>
               {autoRenews ? (
                 <div className="grid gap-1.5">
-                  <Label htmlFor={`${uid}-recurrence`} className="ledger-cap text-[10px] text-ink-muted">
+                  <Label htmlFor={`${uid}-recurrence`} className="text-sm font-medium text-ink">
                     Recurrence
                   </Label>
                   <input type="hidden" name="recurrence" value={period} />
@@ -280,7 +281,7 @@ export function ItemFormDialog({
             </div>
 
             <div className="grid gap-1.5">
-              <Label htmlFor={`${uid}-notes`} className="ledger-cap text-[10px] text-ink-muted">
+              <Label htmlFor={`${uid}-notes`} className="text-sm font-medium text-ink">
                 Notes
               </Label>
               <textarea

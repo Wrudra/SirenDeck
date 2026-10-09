@@ -43,14 +43,12 @@ export function ViewTabs() {
   };
 
   const cls = (isActive: boolean) =>
-    `inline-flex h-8 items-center gap-1.5 border-b-2 px-2.5 text-sm font-medium transition-colors duration-150 ease-[var(--ease-out)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
-      isActive
-        ? "border-ink text-ink"
-        : "border-transparent text-ink-muted hover:text-ink"
+    `inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors duration-150 ease-[var(--ease-out)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${
+      isActive ? "bg-ink text-bg" : "text-ink-muted hover:bg-surface-2 hover:text-ink"
     }`;
 
   return (
-    <nav aria-label="View" className="flex items-center gap-1">
+    <nav aria-label="View" className="flex items-center gap-0.5 rounded-full bg-surface-2 p-0.5">
       <button
         type="button"
         onClick={() => go("map")}
@@ -67,7 +65,7 @@ export function ViewTabs() {
         className={cls(active === "list")}
       >
         <ListIcon className="size-3.5" aria-hidden />
-        Ledger
+        List
       </button>
     </nav>
   );

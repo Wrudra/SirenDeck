@@ -27,6 +27,7 @@ import {
 import { formatCost } from "@/lib/money";
 import { getUrgency } from "@/lib/urgency";
 import type { CategoryRow, ItemRow } from "@/lib/validation/item";
+import { MapLegend } from "./map-legend";
 import { MapTooltip } from "./map-tooltip";
 import { SummaryStrip } from "./summary-strip";
 import { Tile, daysLabel } from "./tile";
@@ -233,8 +234,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                 <div className="bg-heat-soon" />
                 <div className="bg-heat-urgent" />
               </div>
-              <p className="ledger-cap mt-3 text-[11px] text-ink-muted">The ledger is blank</p>
-              <h2 className="font-display text-2xl font-semibold text-ink">Your map starts with one entry</h2>
+              <h2 className="mt-3 text-2xl font-semibold tracking-[-0.02em] text-ink">Your map starts with one deadline</h2>
               <p className="text-sm leading-relaxed text-ink-muted" style={{ textWrap: "pretty" }}>
                 Add a subscription, bill or document renewal. The closer the deadline, the larger the tile.
                 Color runs the same way: green is calm, red is past due.
@@ -281,6 +281,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
             )}
           </div>
         )}
+        <SummaryStrip model={model} />
         <div
           ref={ref}
           className="relative min-h-0 flex-1 overflow-hidden bg-heat-bg"
@@ -376,20 +377,18 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
               </AnimatePresence>
             </>
           )}
+          <MapLegend />
+          <MapTooltip
+            item={activeItem}
+            category={activeItem ? categoryById.get(activeItem.categoryId) : undefined}
+            onDone={activeItem ? onDone : undefined}
+            donePending={donePending}
+          />
         </div>
-
-        <MapTooltip
-          item={activeItem}
-          category={activeItem ? categoryById.get(activeItem.categoryId) : undefined}
-          onDone={activeItem ? onDone : undefined}
-          donePending={donePending}
-        />
         </>
         )}
 
         <UnpricedShelf items={model.shelf} onAddCost={openEdit} />
-
-        <SummaryStrip model={model} />
 
         <section aria-label="All items" className="sr-only">
           <ul>

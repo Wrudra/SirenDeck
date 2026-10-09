@@ -128,10 +128,8 @@ export function DepartureBoard() {
       <div className="overflow-hidden rounded-[var(--radius-dialog)] border border-rule bg-heat-bg shadow-[0_8px_24px_rgb(0_0_0/0.08)]">
         {/* heatmap header rail */}
         <div className="flex items-center justify-between border-b border-heat-rule px-4 py-2.5">
-          <p className="ledger-cap text-[10px] text-white/55">
-            Entries: renewals &amp; expiries
-          </p>
-          <p className="ledger-cap text-[10px] text-white/55">Synthetic</p>
+          <p className="text-xs text-white/70">A sample map</p>
+          <p className="text-xs text-white/50">Sample data</p>
         </div>
 
         <div className="grid md:grid-cols-[3fr_2fr]">
@@ -203,10 +201,9 @@ export function DepartureBoard() {
         </div>
 
         {/* heatmap footer: the reading key */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-heat-rule px-4 py-2">
-          <span className="ledger-cap text-[9px] text-white/55">Tile size = how soon due</span>
-          <span className="ledger-cap text-[9px] text-white/55">Color = urgency</span>
-          <span className="ledger-cap ml-auto text-[9px] text-white/55">Rows rank by due date</span>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/10 px-4 py-2 text-[11px] text-white/70">
+          <span>Larger means sooner.</span>
+          <span>Color is how urgent.</span>
         </div>
       </div>
     </MotionConfig>

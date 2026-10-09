@@ -48,8 +48,7 @@ export default async function AppPage({
         categories={categories}
         shownCount={items.length}
         totalCount={allItems.length}
-      />
-      <div className="flex items-center justify-between gap-3 border-b border-rule bg-surface px-4 py-2">
+      >
         <ViewTabs />
         <ItemFormDialog
           categories={categories}
@@ -58,14 +57,14 @@ export default async function AppPage({
               size="sm"
               data-icon="inline-start"
               id="add-item"
-              className="plate rounded-[var(--radius-control)] border-transparent hover:bg-ink"
+              className="plate rounded-full border-transparent px-3 hover:bg-ink"
             >
               <PlusIcon />
-              Add item
+              Add
             </Button>
           }
         />
-      </div>
+      </FilterBar>
 
       {items.length === 0 && hasActiveFilters(filters) ? (
         <ZeroResults query={filters.q} view={view} />
@@ -136,9 +135,8 @@ function ZeroResults({ query, view }: { query: string; view: string | null }) {
   return (
     <div className="flex flex-1 items-center justify-center px-4">
       <div className="text-center">
-        <p className="ledger-cap text-[11px] text-ink-muted">No entries match</p>
-        <p className="font-display mt-2 text-xl font-semibold tracking-[-0.01em]">
-          {query ? <>Nothing in the ledger for “{query}”.</> : "No items match these filters."}
+        <p className="text-xl font-semibold tracking-[-0.02em]">
+          {query ? <>Nothing matches “{query}”.</> : "Nothing matches these filters."}
         </p>
         <Link
           href={href}

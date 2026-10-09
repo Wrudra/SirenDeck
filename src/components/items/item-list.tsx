@@ -91,9 +91,9 @@ export function ItemList({
     return (
       <div className="flex flex-1 items-center justify-center px-4">
         <div className="text-center">
-          <p className="ledger-cap text-[11px] text-ink-muted">Nothing entered yet</p>
-          <p className="font-display mt-2 text-xl font-semibold tracking-[-0.01em]">
-            The ledger is blank
+          <p className="text-sm text-ink-muted">Nothing here yet</p>
+          <p className="mt-2 text-xl font-semibold tracking-[-0.02em]">
+            Add the first deadline
           </p>
           <p className="mt-1 text-sm text-ink-muted">Add your first item to give it a line.</p>
         </div>
@@ -112,24 +112,8 @@ export function ItemList({
         )}
       >
         <div className="mx-auto w-full max-w-3xl px-3 py-3 sm:px-4 sm:py-4">
-          {/* Departure-board column ruling */}
-          <div
-            className="grid grid-cols-[1.6rem_1fr_auto_auto] items-center gap-2 border-b border-rule px-2 pb-2 sm:grid-cols-[2.25rem_minmax(0,1fr)_7rem_6.75rem_auto] sm:gap-3"
-            aria-hidden
-          >
-            <span className="ledger-cap text-[9px] text-ink-muted">#</span>
-            <span className="ledger-cap text-[9px] text-ink-muted">Entry</span>
-            <span className="ledger-cap hidden text-right text-[9px] text-ink-muted sm:inline">
-              Due
-            </span>
-            <span className="ledger-cap text-right text-[9px] text-ink-muted">
-              Yearly / horizon
-            </span>
-            <span className="w-14" />
-          </div>
-
-          <ul className="group/board flex flex-col" role="list" aria-label="Ledger entries">
-            {items.map((item, rank) => {
+          <ul className="flex flex-col gap-2" role="list" aria-label="Items">
+            {items.map((item) => {
               const urgency = getUrgency(item.due_date);
               const overdue = urgency.level === "overdue";
               const yearCost = yearlyCost({
@@ -147,23 +131,13 @@ export function ItemList({
                   data-row
                   data-overdue={overdue ? "true" : undefined}
                   className={cn(
-                    "group/row grid grid-cols-[1.6rem_1fr_auto_auto] items-center gap-2 border-b border-rule px-2 py-2.5 last:border-b-0 sm:grid-cols-[2.25rem_minmax(0,1fr)_7rem_6.75rem_auto] sm:gap-3 sm:py-3",
+                    "group/row grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 rounded-2xl bg-surface px-3 py-3 sm:grid-cols-[minmax(0,1fr)_7rem_6.75rem_auto] sm:px-4",
                     "transition-[background-color] duration-150 ease-[var(--ease-standard)]",
                     overdue
-                      ? "border-l-2 border-l-heat-overdue bg-heat-overdue/10 hover:bg-heat-overdue/15"
-                      : "hover:bg-surface focus-within:bg-surface",
+                      ? "ring-1 ring-heat-overdue/40"
+                      : "hover:bg-surface-2/60",
                   )}
                 >
-                  <span
-                    className={cn(
-                      "text-xs leading-none font-medium tabular",
-                      overdue ? "text-ink" : "text-ink-muted",
-                    )}
-                    aria-hidden
-                  >
-                    {String(rank + 1).padStart(2, "0")}
-                  </span>
-
                   <div className="flex min-w-0 items-center gap-2.5">
                     <span
                       aria-hidden
