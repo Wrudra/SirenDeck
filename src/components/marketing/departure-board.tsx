@@ -3,15 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { MotionConfig, motion, useReducedMotion } from "motion/react";
 
+import { URGENCY_INK, URGENCY_WASH } from "@/components/money-map/tile";
 import { deadlineWeight } from "@/lib/map/deadline-weight";
 import { layoutFlat } from "@/lib/map/treemap";
 import { getUrgency, type UrgencyLevel } from "@/lib/urgency";
 
 /**
- * Synthetic demo board for the landing hero. Real layout math (d3-hierarchy),
- * fake data, a clock that advances every few seconds: shades deepen along the
- * five-step ink ramp and rows rerank in place. Labeled synthetic · the
- * mechanism demonstrated, not described.
+ * Sample map for the landing page. Same layout math and the same washed
+ * cards as the Money Map. A clock advances the dates so the cards rerank.
  */
 
 interface DemoItem {
@@ -31,7 +30,11 @@ const INITIAL: DemoItem[] = [
   { id: "lic", title: "Driving license", cost: 1200, daysLeft: 96 },
 ];
 
-const RANK_SPRING = { type: "spring", bounce: 0, duration: 0.4 } as const;
+const RANK_SPRING = { type: "spring", bounce: 0, duration: 0.35 } as const;
+/** One demo-day per step. Fast enough that the map is always moving. */
+const STEP_MS = 280;
+/** Walk every item through due and a little past due, then start again. */
+const CYCLE = 110;
 
 function fmtBDT(n: number): string {
   return `৳${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "")}k`;
@@ -42,33 +45,6 @@ function urgencyOf(daysLeft: number): UrgencyLevel {
     new Date(Date.now() + daysLeft * 86_400_000).toISOString().slice(0, 10),
   ).level;
 }
-
-/** Heatmap shade per urgency · matches the Money Map surface. */
-const SHADE: Record<UrgencyLevel, string> = {
-  calm: "var(--heat-calm)",
-  soon: "var(--heat-soon)",
-  urgent: "var(--heat-urgent)",
-  critical: "var(--heat-critical)",
-  overdue: "var(--heat-overdue)",
-};
-
-/** White text on every urgency · TradingView-style heatmap. */
-const SHADE_TEXT: Record<UrgencyLevel, string> = {
-  calm: "var(--heat-ink)",
-  soon: "var(--heat-ink)",
-  urgent: "var(--heat-ink)",
-  critical: "var(--heat-ink)",
-  overdue: "var(--heat-ink)",
-};
-
-/** Small chips beside rows: text-safe twins. */
-const TEXT_TONE: Record<UrgencyLevel, string> = {
-  calm: "var(--heat-calm)",
-  soon: "var(--heat-soon)",
-  urgent: "var(--heat-urgent)",
-  critical: "var(--heat-critical)",
-  overdue: "var(--heat-overdue)",
-};
 
 function daysWord(d: number): string {
   if (d < 0) return `${Math.abs(d)}d over`;
@@ -82,13 +58,11 @@ export function DepartureBoard() {
 
   useEffect(() => {
     if (reduced) return;
-    const t = setInterval(() => setTick((n) => n + 1), 2600);
-    return () => clearInterval(t);
+    const t = window.setInterval(() => setTick((n) => (n + 1) % CYCLE), STEP_MS);
+    return () => window.clearInterval(t);
   }, [reduced]);
 
   const items = useMemo(() => {
-    // one day burns per ~2.6s tick; the clock never resets. Slow enough that
-    // the rerank reads as a living ledger, not a countdown alarm.
     const burn = tick;
     return INITIAL.map((item) => ({
       ...item,
@@ -106,7 +80,7 @@ export function DepartureBoard() {
 
   const rects = useMemo(() => {
     const inputs = items.map((i) => ({ id: i.id, value: deadlineWeight(i.daysLeft) }));
-    const laid = layoutFlat(inputs, 720, 300, 2);
+    const laid = layoutFlat(inputs, 720, 300, 12);
     const byId = new Map(laid.map((r) => [r.id, r]));
     // scale from the 720×300 design frame to percentage space
     return items.map((i) => {
@@ -125,85 +99,60 @@ export function DepartureBoard() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="overflow-hidden rounded-[var(--radius-dialog)] border border-rule bg-heat-bg shadow-[0_8px_24px_rgb(0_0_0/0.08)]">
-        {/* heatmap header rail */}
-        <div className="flex items-center justify-between border-b border-heat-rule px-4 py-2.5">
-          <p className="text-xs text-white/70">A sample map</p>
-          <p className="text-xs text-white/50">Sample data</p>
-        </div>
-
-        <div className="grid md:grid-cols-[3fr_2fr]">
-          {/* the map: sized by deadline, shaded by urgency */}
-          <div
-            aria-hidden
-            className="relative aspect-[12/5] gap-px bg-heat-rule p-px md:border-r md:border-heat-rule"
-          >
-            <div className="relative h-full w-full">
-              {rects.map(
-                (r) =>
-                  r && (
-                    <motion.div
-                      key={r.id}
-                      layout={!reduced}
-                      className="absolute p-1.5"
-                      style={{
-                        left: `${r.left}%`,
-                        top: `${r.top}%`,
-                        width: `calc(${r.width}% - 1px)`,
-                        height: `calc(${r.height}% - 1px)`,
-                        backgroundColor: SHADE[r.urgency],
-                        color: SHADE_TEXT[r.urgency],
-                      }}
-                      transition={RANK_SPRING}
-                    >
-                      {r.width > 14 && r.height > 30 && (
-                        <>
-                          <p className="truncate text-[11px] leading-tight font-semibold">{r.title}</p>
-                          <p
-                            className="tabular absolute right-1.5 bottom-1 text-[10px] opacity-80"
-                            style={{ fontFamily: "var(--font-mono-var)" }}
-                          >
-                            {fmtBDT(r.cost)}
-                          </p>
-                        </>
-                      )}
-                    </motion.div>
-                  ),
-              )}
-            </div>
+      <div>
+        <p className="mb-3 text-sm text-ink-muted">Sample</p>
+        <div className="grid gap-3 md:grid-cols-[1.4fr_0.8fr]">
+          <div aria-hidden className="relative aspect-[12/5] min-h-56">
+            {rects.map(
+              (r) =>
+                r && (
+                  <motion.div
+                    key={r.id}
+                    layout={!reduced}
+                    className="absolute flex flex-col justify-start overflow-hidden rounded-2xl p-3 text-left"
+                    style={{
+                      left: `${r.left}%`,
+                      top: `${r.top}%`,
+                      width: `${r.width}%`,
+                      height: `${r.height}%`,
+                      background: URGENCY_WASH[r.urgency],
+                    }}
+                    transition={RANK_SPRING}
+                  >
+                    {r.width > 16 && r.height > 28 && (
+                      <p className="truncate text-[13px] leading-tight font-semibold tracking-[-0.02em] text-ink">
+                        {r.title}
+                      </p>
+                    )}
+                    {r.width > 12 && r.height > 22 && (
+                      <p
+                        className="tabular text-sm font-semibold tracking-[-0.03em]"
+                        style={{ color: URGENCY_INK[r.urgency] }}
+                      >
+                        {daysWord(r.daysLeft)}
+                      </p>
+                    )}
+                  </motion.div>
+                ),
+            )}
           </div>
 
-          {/* the ranked rows: what leaves soonest, reranking in place */}
-          <div aria-hidden className="flex flex-col justify-between gap-px bg-heat-rule p-px">
+          <ul aria-hidden className="flex flex-col justify-center gap-1">
             {ranked.map((item) => (
-              <motion.div
+              <motion.li
                 key={item.id}
                 layout={!reduced}
                 transition={RANK_SPRING}
-                className="grid grid-cols-[1fr_auto_auto] items-baseline gap-3 bg-heat-bg px-3 py-2"
+                className="grid grid-cols-[1fr_auto_auto] items-baseline gap-3 px-1 py-1.5"
               >
-                <span className="truncate text-[13px] text-white/90">{item.title}</span>
-                <span
-                  className="tabular text-[12px] font-semibold"
-                  style={{ color: TEXT_TONE[item.urgency], fontFamily: "var(--font-mono-var)" }}
-                >
+                <span className="truncate text-sm text-ink">{item.title}</span>
+                <span className="tabular text-sm font-semibold" style={{ color: URGENCY_INK[item.urgency] }}>
                   {daysWord(item.daysLeft)}
                 </span>
-                <span
-                  className="tabular w-14 text-right text-[12px] text-white/55"
-                  style={{ fontFamily: "var(--font-mono-var)" }}
-                >
-                  {fmtBDT(item.cost)}
-                </span>
-              </motion.div>
+                <span className="tabular w-12 text-right text-sm text-ink-muted">{fmtBDT(item.cost)}</span>
+              </motion.li>
             ))}
-          </div>
-        </div>
-
-        {/* heatmap footer: the reading key */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-white/10 px-4 py-2 text-[11px] text-white/70">
-          <span>Larger means sooner.</span>
-          <span>Color is how urgent.</span>
+          </ul>
         </div>
       </div>
     </MotionConfig>

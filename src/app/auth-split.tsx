@@ -29,7 +29,7 @@ export function AuthSplit({
           href="/"
           className="relative z-10 w-fit focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
         >
-          <Logo onDark className="h-8" />
+          <Logo onDark />
         </Link>
         <div className="relative z-10 max-w-md">
           <p className="text-4xl font-semibold tracking-[-0.03em] text-balance">
@@ -40,13 +40,12 @@ export function AuthSplit({
           </p>
         </div>
         <div aria-hidden className="relative z-10 grid h-28 grid-cols-6 grid-rows-3 gap-1.5">
-          <div className="col-span-2 row-span-3 rounded-xl bg-[var(--heat-overdue)]" />
-          <div className="col-span-2 row-span-2 rounded-xl bg-[var(--heat-urgent)]" />
-          <div className="rounded-xl bg-[var(--heat-soon)]" />
-          <div className="rounded-xl bg-[var(--heat-calm)]" />
-          <div className="rounded-xl bg-[var(--heat-watch)]" />
-          <div className="col-span-2 rounded-xl bg-[var(--heat-calm)]" />
-          <div className="rounded-xl bg-[var(--heat-soon)]" />
+          <div className="col-span-2 row-span-3 rounded-xl bg-[color-mix(in_srgb,var(--heat-overdue)_24%,white)]" />
+          <div className="col-span-2 row-span-2 rounded-xl bg-[color-mix(in_srgb,var(--heat-urgent)_32%,white)]" />
+          <div className="col-span-2 row-span-2 rounded-xl bg-[color-mix(in_srgb,var(--heat-critical)_28%,white)]" />
+          <div className="col-span-2 rounded-xl bg-[color-mix(in_srgb,var(--heat-soon)_28%,white)]" />
+          <div className="rounded-xl bg-[color-mix(in_srgb,var(--heat-calm)_22%,white)]" />
+          <div className="rounded-xl bg-[color-mix(in_srgb,var(--heat-calm)_22%,white)]" />
         </div>
       </section>
 
@@ -56,7 +55,7 @@ export function AuthSplit({
             href="/"
             className="lg:invisible focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            <Logo className="h-8" />
+            <Logo />
           </Link>
           <Link
             href={alternateHref}

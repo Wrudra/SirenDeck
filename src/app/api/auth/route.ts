@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { authCallbackUrl } from "@/lib/auth/redirect";
+import { verifyTurnstile } from "@/lib/auth/turnstile";
 import { createClient } from "@/lib/supabase/server";
 
 const SIGN_IN_ERROR = "Email or password is incorrect.";
@@ -19,7 +20,7 @@ function emailOf(value: unknown): string | null {
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const mode = new URL(request.url).searchParams.get("mode");
-  let body: { email?: unknown; password?: unknown };
+  let body: { email?: unknown; password?: unknown; turnstileToken?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -47,8 +48,32 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   if (!password) {
     return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
   }
-  if (password.length < 8) {
-    return NextResponse.json({ error: "Use at least 8 characters." }, { status: 400 });
+  if (
+    mode === "signup" &&
+    (password.length < 10 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password))
+  ) {
+    return NextResponse.json(
+      { error: "Use at least 10 characters, with a lowercase letter, an uppercase letter, and a digit." },
+      { status: 400 },
+    );
+  }
+
+  const turnstileToken = typeof body.turnstileToken === "string" ? body.turnstileToken : "";
+  if (!(await verifyTurnstile(turnstileToken))) {
+    return NextResponse.json({ error: "Confirm you are human, then try again." }, { status: 400 });
+  }
+
+  const { data: allowed, error: limitError } = await supabase.rpc("consume_auth_attempt", {
+    p_email: email,
+  });
+  if (limitError) {
+    return NextResponse.json({ error: "Sign-in is not available right now." }, { status: 500 });
+  }
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many attempts. Wait a minute and try again." },
+      { status: 429 },
+    );
   }
 
   if (mode === "signup") {

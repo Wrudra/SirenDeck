@@ -15,7 +15,7 @@ export default function AuthCodeErrorPage() {
           href="/"
           className="w-fit focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
-          <Logo className="h-8" />
+          <Logo />
         </Link>
         <h1 className="text-4xl font-semibold tracking-[-0.03em]">That link has expired</h1>
         <p className="text-sm leading-relaxed text-ink-muted" style={{ textWrap: "pretty" }}>

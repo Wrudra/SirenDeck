@@ -13,7 +13,7 @@ export function TopBar({ email }: { email: string }) {
 
   return (
     <header className="chrome flex min-h-14 shrink-0 items-center justify-between border-b border-white/50 px-4 pt-[env(safe-area-inset-top)]">
-      <Logo className="h-8" />
+      <Logo />
       <div className="flex items-center gap-3">
         <span className="hidden max-w-48 truncate text-xs text-ink-muted sm:inline" title={email}>
           {email}

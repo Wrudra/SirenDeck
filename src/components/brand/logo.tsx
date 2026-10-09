@@ -1,8 +1,7 @@
 import { cn } from "cn";
 
 /**
- * Full lockup: tile mark plus wordmark. The file is dark on transparent,
- * so dark surfaces invert it.
+ * Three-tile mark. Dark on transparent, so dark surfaces invert it.
  */
 export function Logo({
   className,
@@ -13,11 +12,11 @@ export function Logo({
 }) {
   return (
     <img
-      src="/sirendeck-logo.png"
+      src="/sirendeck-mark.png"
       alt="SirenDeck"
-      width={520}
-      height={130}
-      className={cn("h-7 w-auto", onDark && "invert", className)}
+      width={754}
+      height={754}
+      className={cn("h-10 w-10", onDark && "invert", className)}
     />
   );
 }

@@ -31,6 +31,10 @@ import { MapTooltip, type TileBox } from "./map-tooltip";
 import { Tile, daysLabel } from "./tile";
 import { UnpricedShelf } from "./unpriced-shelf";
 
+/** Inset so the cards do not sit on the window edge. */
+const MAP_SIDE = 28;
+const MAP_BOTTOM = 28;
+
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
   repeat: RepeatIcon,
   shield: ShieldIcon,
@@ -142,12 +146,14 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
    * as square as the weights allow. The heaviest sector lands first.
    */
   const overview = useMemo(() => {
-    if (!container || container.w <= 0 || container.h <= 0) return null;
+    if (!container || container.w <= MAP_SIDE * 2 || container.h <= MAP_BOTTOM) return null;
+    const width = container.w - MAP_SIDE * 2;
+    const height = container.h - MAP_BOTTOM;
     return {
-      rects: layoutGrouped(entries, container.w, container.h, {
-        paddingInner: 2,
-        headerHeight: 22,
-      }),
+      rects: layoutGrouped(entries, width, height, {
+        paddingInner: 8,
+        headerHeight: 28,
+      }).map((group) => ({ ...group, x: group.x + MAP_SIDE })),
       otherMembers: [] as string[],
     };
   }, [container, entries]);
@@ -184,14 +190,16 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
         ? entries.filter((g) => otherMembers.includes(g.id)).flatMap((g) => g.children)
         : (entries.find((g) => g.id === zoomId)?.children ?? []);
     if (children.length === 0) return [];
+    const width = Math.max(container.w - MAP_SIDE * 2, 0);
+    const height = Math.max(container.h - MAP_BOTTOM, 0);
     return [
       {
         id: zoomId,
-        x: 0,
+        x: MAP_SIDE,
         y: 0,
-        width: container.w,
-        height: container.h,
-        children: layoutFlat(children, container.w, container.h, 2),
+        width,
+        height,
+        children: layoutFlat(children, width, height, 8),
       },
     ];
   }, [container, overview, entries, otherMembers, zoomId]);
@@ -250,15 +258,14 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
         {empty ? (
           <div className="flex min-h-0 flex-1 items-center justify-center p-6">
             <div className="flex max-w-md flex-col items-center gap-3 text-center">
-              <div aria-hidden className="grid aspect-[16/7] w-full grid-cols-4 grid-rows-2 gap-px overflow-hidden border border-heat-rule bg-heat-bg p-1">
-                <div className="col-span-2 row-span-2 bg-heat-overdue" />
-                <div className="bg-heat-urgent" />
-                <div className="bg-heat-calm" />
-                <div className="bg-heat-soon" />
-                <div className="bg-heat-critical" />
-                <div className="bg-heat-calm" />
-                <div className="bg-heat-soon" />
-                <div className="bg-heat-urgent" />
+              <div aria-hidden className="grid aspect-[16/7] w-full grid-cols-4 grid-rows-2 gap-2">
+                <div className="col-span-2 row-span-2 rounded-2xl bg-heat-overdue" />
+                <div className="rounded-2xl bg-heat-urgent" />
+                <div className="rounded-2xl bg-heat-calm" />
+                <div className="rounded-2xl bg-heat-critical" />
+                <div className="rounded-2xl bg-heat-calm" />
+                <div className="rounded-2xl bg-heat-soon" />
+                <div className="rounded-2xl bg-heat-urgent" />
               </div>
               <h2 className="mt-3 text-2xl font-semibold tracking-[-0.02em] text-ink">Your map starts with one deadline</h2>
               <p className="text-sm leading-relaxed text-ink-muted" style={{ textWrap: "pretty" }}>
@@ -309,7 +316,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
         )}
         <div
           ref={ref}
-          className="relative min-h-0 flex-1 overflow-hidden bg-heat-bg"
+          className="relative min-h-0 flex-1 overflow-hidden bg-bg"
           aria-label="Money Map: treemap of items sized by how soon they are due, colored by urgency. Full list follows."
         >
           {groupRects && (
@@ -332,7 +339,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                         setHoveredId(null);
                         setZoomId(group.id);
                       }}
-                      className="ledger-cap group absolute z-10 flex h-[22px] cursor-zoom-in items-center justify-between gap-2 bg-black px-2 text-left text-white transition-colors hover:bg-[#1a1a1a] hover:text-white focus-visible:bg-[#1a1a1a] focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/70"
+                      className="group absolute z-10 flex h-7 cursor-pointer items-end justify-between gap-2 bg-transparent px-0.5 pb-1 text-left text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
                       style={{ left: group.x, top: group.y, width: group.width }}
                       title={
                         isOther
@@ -347,21 +354,14 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                           : `Zoom into ${name}${yearly}`
                       }
                     >
-                      <span className="min-w-0 truncate text-sm font-medium normal-case tracking-normal decoration-white/55 underline-offset-[3px] group-hover:underline group-focus-visible:underline">
+                      <span className="min-w-0 truncate text-[13px] font-medium tracking-[-0.01em]">
                         {name}
-                        <span
-                          aria-hidden
-                          className="ml-1 text-white/60 transition-colors group-hover:text-white group-focus-visible:text-white"
-                        >
+                        <span aria-hidden className="ml-0.5 text-ink-muted">
                           ›
                         </span>
                       </span>
                       {shownTotal && (
-                        <span
-                          aria-hidden
-                          className="tabular shrink-0 whitespace-nowrap text-[11px] font-normal normal-case tracking-normal text-white/70"
-                          style={{ fontFamily: "var(--font-mono-var)" }}
-                        >
+                        <span aria-hidden className="tabular shrink-0 whitespace-nowrap text-[12px] text-ink-muted">
                           {shownTotal}
                         </span>
                       )}

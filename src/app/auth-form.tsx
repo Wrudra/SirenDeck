@@ -1,10 +1,32 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import Script from "next/script";
+import { useEffect, useId, useRef, useState } from "react";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 
+import { turnstileSiteKey } from "@/lib/auth/turnstile";
+
 type Mode = "login" | "signup";
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (
+        el: HTMLElement,
+        opts: {
+          sitekey: string;
+          theme?: "light" | "dark" | "auto";
+          callback?: (token: string) => void;
+          "expired-callback"?: () => void;
+          "error-callback"?: () => void;
+        },
+      ) => string;
+      reset: (id?: string) => void;
+      remove: (id: string) => void;
+    };
+  }
+}
 
 const fieldCls =
   "w-full rounded-[var(--radius-control)] border bg-surface px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-ink-muted";
@@ -19,6 +41,36 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<HTMLDivElement>(null);
+  const widgetId = useRef<string | null>(null);
+  const siteKey = turnstileSiteKey();
+
+  function resetTurnstile() {
+    setTurnstileToken(null);
+    if (widgetId.current && window.turnstile) window.turnstile.reset(widgetId.current);
+  }
+
+  function mountTurnstile() {
+    if (!siteKey || !turnstileRef.current || !window.turnstile || widgetId.current) return;
+    widgetId.current = window.turnstile.render(turnstileRef.current, {
+      sitekey: siteKey,
+      theme: "light",
+      callback: (token) => setTurnstileToken(token),
+      "expired-callback": () => setTurnstileToken(null),
+      "error-callback": () => setTurnstileToken(null),
+    });
+  }
+
+  useEffect(() => {
+    mountTurnstile();
+    return () => {
+      if (widgetId.current && window.turnstile) window.turnstile.remove(widgetId.current);
+      widgetId.current = null;
+    };
+    // The widget mounts once the script is ready.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteKey]);
 
   function emailError(value: string): string | null {
     if (value === "") return "Enter your email address.";
@@ -30,7 +82,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   function passwordError(value: string): string | null {
     if (value === "") return "Enter your password.";
-    if (value.length < 8) return "Use at least 8 characters.";
+    if (mode !== "signup") return null;
+    if (value.length < 10) return "Use at least 10 characters.";
+    if (!/[a-z]/.test(value) || !/[A-Z]/.test(value) || !/\d/.test(value)) {
+      return "Use a lowercase letter, an uppercase letter, and a digit.";
+    }
     return null;
   }
 
@@ -67,6 +123,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
     if (emailMsg) errs.email = emailMsg;
     if (passwordMsg) errs.password = passwordMsg;
     setFieldErrors(errs);
+    if (!siteKey) errs.turnstile = "Sign-in is not configured.";
+    else if (!turnstileToken) errs.turnstile = "Confirm you are human, then try again.";
     if (Object.keys(errs).length > 0) {
       document.getElementById(errs.email ? "email" : "password")?.focus();
       return;
@@ -74,7 +132,11 @@ export function AuthForm({ mode }: { mode: Mode }) {
     setPending(true);
     setError(null);
     try {
-      const data = await post(mode === "signup" ? "signup" : "login", { email, password });
+      const data = await post(mode === "signup" ? "signup" : "login", {
+        email,
+        password,
+        turnstileToken: turnstileToken ?? "",
+      });
       if (data.needsConfirmation) {
         setNotice(true);
         return;
@@ -82,6 +144,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
       router.replace("/app");
       router.refresh();
     } catch (err) {
+      resetTurnstile();
       setError(err instanceof Error ? err.message : "Connection failed. Please try again.");
     } finally {
       setPending(false);
@@ -165,7 +228,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
             name="password"
             type={showPassword ? "text" : "password"}
             required
-            minLength={8}
+            minLength={mode === "signup" ? 10 : undefined}
             autoComplete={mode === "signup" ? "new-password" : "current-password"}
             value={password}
             onChange={(e) => {
@@ -183,8 +246,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
               });
             }}
             aria-invalid={fieldErrors.password ? true : undefined}
-            aria-describedby={fieldErrors.password ? "password-err" : "password-hint"}
-            placeholder="At least 8 characters"
+            aria-describedby={
+              fieldErrors.password ? "password-err" : mode === "signup" ? "password-hint" : undefined
+            }
+            placeholder={mode === "signup" ? "At least 10 characters" : "Password"}
             className={`${fieldCls} pr-11 ${
               fieldErrors.password
                 ? "border-ink focus-visible:ring-2 focus-visible:ring-ink/30"
@@ -208,12 +273,26 @@ export function AuthForm({ mode }: { mode: Mode }) {
           <p id="password-err" className="text-xs text-ink">
             {fieldErrors.password}
           </p>
-        ) : (
+        ) : mode === "signup" ? (
           <p id="password-hint" className="text-xs text-ink-muted">
-            At least 8 characters.
+            At least 10 characters, with a lowercase letter, an uppercase letter, and a digit.
           </p>
-        )}
+        ) : null}
       </div>
+
+      {siteKey ? (
+        <>
+          <Script
+            src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+            strategy="afterInteractive"
+            onLoad={mountTurnstile}
+          />
+          <div ref={turnstileRef} />
+        </>
+      ) : null}
+      {fieldErrors.turnstile && (
+        <p className="text-xs text-ink">{fieldErrors.turnstile}</p>
+      )}
 
       {error && (
         <p
@@ -227,7 +306,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || !turnstileToken}
         className="plate h-11 w-full rounded-full text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50"
       >
         {pending
