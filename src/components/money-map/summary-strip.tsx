@@ -1,65 +1,5 @@
-"use client";
-
-import { useEffect, useRef, useState } from "react";
-import { useReducedMotion } from "motion/react";
-
 import type { MapModel } from "@/lib/map/map-model";
 import { formatCost } from "@/lib/money";
-
-/**
- * Flap figure: gentle count-up with tabular figures, like a split-flap
- * settling on its value. Reduced motion → instant value. The rAF callback
- * (an external-system subscription) is the only place state advances.
- */
-function CountUp({
-  value,
-  format,
-}: {
-  value: number;
-  format: (v: number) => string;
-}) {
-  const reduced = useReducedMotion();
-  const [display, setDisplay] = useState(value);
-  const startRef = useRef(value);
-  const rafRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (reduced) {
-      startRef.current = value;
-      return;
-    }
-
-    const start = startRef.current;
-    const delta = value - start;
-    if (delta === 0) return;
-
-    const t0 = performance.now();
-    const duration = 600;
-    const tick = (now: number) => {
-      const t = Math.min((now - t0) / duration, 1);
-      const eased = 1 - Math.pow(1 - t, 3);
-      const next = start + delta * eased;
-      setDisplay(next);
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(tick);
-      } else {
-        startRef.current = value;
-      }
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-    };
-  }, [value, reduced]);
-
-  const shown = reduced ? value : display;
-
-  return (
-    <span className="tabular" style={{ fontFamily: "var(--font-mono-var)" }}>
-      {format(Math.round(shown))}
-    </span>
-  );
-}
 
 function SummaryMetric({
   label,
@@ -78,13 +18,14 @@ function SummaryMetric({
       <span
         className={
           emphasis === "overdue"
-            ? "text-sm font-semibold text-urgency-overdue-text"
+            ? "tabular text-sm font-semibold text-urgency-overdue-text"
             : emphasis === "dueSoon"
-              ? "text-sm font-semibold text-urgency-urgent-text"
-              : "font-display text-base font-semibold"
+              ? "tabular text-sm font-semibold text-urgency-urgent-text"
+              : "tabular font-display text-base font-semibold"
         }
+        style={{ fontFamily: "var(--font-mono-var)" }}
       >
-        <CountUp value={value} format={format} />
+        {format(value)}
       </span>
     </div>
   );
@@ -92,14 +33,14 @@ function SummaryMetric({
 
 /**
  * Summary strip: per-currency blocks (total yearly / next 30 days / overdue),
- * plus item count. Reads as the board's totals row.
+ * plus item count. Figures stay still — they are data being read.
  */
 export function SummaryStrip({ model }: { model: MapModel }) {
   return (
     <div
       role="status"
       aria-label="Cost summary"
-      className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-rule bg-surface px-3 py-2 sm:gap-x-8 sm:gap-y-3 sm:px-4 sm:py-2.5"
+      className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-rule bg-surface px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:gap-x-8 sm:gap-y-3 sm:px-4 sm:py-2.5"
     >
       {model.totals.length === 0 && (
         <p className="text-xs text-ink-muted">No priced items yet.</p>

@@ -31,7 +31,7 @@ const INITIAL: DemoItem[] = [
   { id: "lic", title: "Driving license", cost: 1200, daysLeft: 96 },
 ];
 
-const RANK_SPRING = { type: "spring", stiffness: 320, damping: 34 } as const;
+const RANK_SPRING = { type: "spring", bounce: 0, duration: 0.4 } as const;
 
 function fmtBDT(n: number): string {
   return `৳${(n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, "")}k`;

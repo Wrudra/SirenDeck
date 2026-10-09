@@ -46,7 +46,7 @@ const URGENCY_TEXT: Record<UrgencyLevel, string> = {
   overdue: "text-urgency-overdue-text",
 };
 
-const RANK_SPRING = { type: "spring", stiffness: 260, damping: 30 } as const;
+const RANK_SPRING = { type: "spring", bounce: 0, duration: 0.35 } as const;
 
 function daysLabel(daysLeft: number): string {
   if (daysLeft < 0) return `${Math.abs(daysLeft)}d overdue`;
@@ -107,7 +107,7 @@ export function ItemList({
     <MotionConfig reducedMotion="user">
       <div
         className={cn(
-          "flex-1 overflow-y-auto transition-opacity duration-150",
+          "flex-1 overflow-y-auto overscroll-contain transition-opacity duration-150",
           pending && "opacity-60",
         )}
       >
@@ -148,11 +148,7 @@ export function ItemList({
                   data-overdue={overdue ? "true" : undefined}
                   className={cn(
                     "group/row grid grid-cols-[1.6rem_1fr_auto_auto] items-center gap-2 border-b border-rule px-2 py-2.5 last:border-b-0 sm:grid-cols-[2.25rem_minmax(0,1fr)_7rem_6.75rem_auto] sm:gap-3 sm:py-3",
-                    "transition-[opacity,background-color] duration-150 ease-[var(--ease-standard)]",
-                    /* Focus choreography: hovered/focused row holds attention; others quiet.
-                       Overdue holds lit — ink is the alarm. */
-                    "group-has-[[data-row]:hover]/board:opacity-[0.4] group-has-[[data-row]:focus-within]/board:opacity-[0.4]",
-                    "hover:!opacity-100 focus-within:!opacity-100 data-[overdue=true]:!opacity-100",
+                    "transition-[background-color] duration-150 ease-[var(--ease-standard)]",
                     overdue
                       ? "border-l-2 border-l-ink bg-ink/[0.035] hover:bg-ink/[0.055]"
                       : "hover:bg-surface focus-within:bg-surface",
@@ -296,7 +292,7 @@ export function ItemList({
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="p-0" onSelect={(e) => e.preventDefault()}>
-                          <div className="flex items-center">
+                          <div className="flex flex-nowrap items-center">
                             <span className="ledger-cap pl-2 pr-1 text-[9px] text-ink-muted">
                               Snooze
                             </span>
@@ -304,8 +300,8 @@ export function ItemList({
                               <Button
                                 key={d}
                                 variant="ghost"
-                                size="icon-xs"
-                                className="tabular text-xs"
+                                size="xs"
+                                className="tabular h-6 w-auto shrink-0 px-1.5 text-xs"
                                 onClick={() =>
                                   run(() => snoozeItem(item.id, d), `Snoozed ${d}d`)
                                 }

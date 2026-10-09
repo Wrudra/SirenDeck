@@ -68,9 +68,9 @@ export default async function Home() {
   if (user) redirect("/app");
 
   return (
-    <div className="min-h-dvh bg-bg text-ink">
+    <div className="min-h-svh bg-bg text-ink">
       {/* ── Masthead: ruled newspaper rail, not a floating island ─────── */}
-      <header className="sticky top-0 z-50 border-b border-rule bg-bg/92 backdrop-blur-sm">
+      <header className="chrome sticky top-0 z-50 border-b border-white/50 pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
           <Link href="/" className="flex items-baseline gap-2.5">
             <span aria-hidden className="inline-block size-3 bg-ink" />

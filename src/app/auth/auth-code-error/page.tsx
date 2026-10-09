@@ -9,9 +9,9 @@ export default function AuthCodeErrorPage() {
   return (
     <main
       id="main-content"
-      className="flex min-h-dvh flex-col bg-bg text-ink"
+      className="flex min-h-svh flex-col bg-bg text-ink"
     >
-      <header className="border-b border-rule">
+      <header className="chrome border-b border-white/50 pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex h-14 max-w-sm items-center px-6">
           <Link
             href="/"

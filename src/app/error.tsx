@@ -14,7 +14,7 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-bg px-6">
+    <main className="flex min-h-svh items-center justify-center bg-bg px-6">
       <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
         <p className="ledger-cap text-[11px] font-semibold">Ledger fault</p>
         <h1 className="font-display text-3xl font-semibold tracking-[-0.01em]">Something broke on our side</h1>

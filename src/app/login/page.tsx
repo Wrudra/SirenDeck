@@ -20,10 +20,10 @@ export default async function LoginPage() {
   return (
     <main
       id="main-content"
-      className="flex min-h-dvh flex-col bg-bg text-ink"
+      className="app-frame flex min-h-svh flex-col bg-bg text-ink"
     >
       {/* Ruled masthead — shell craft, no decorative urgency ramp */}
-      <header className="border-b border-rule">
+      <header className="chrome border-b border-white/50 pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex h-14 max-w-sm items-center justify-between px-6">
           <Link
             href="/"

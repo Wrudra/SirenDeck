@@ -27,8 +27,8 @@ export const URGENCY_PULSE: Record<UrgencyLevel, string> = {
   overdue: "",
 };
 
-/** Spring for tile reflow · the authored rerank moment. */
-export const SMOOTH_SPRING = { type: "spring", stiffness: 260, damping: 30, mass: 1 } as const;
+/** Critically damped reflow. No bounce on data the user is reading. */
+export const SMOOTH_SPRING = { type: "spring", bounce: 0, duration: 0.4 } as const;
 
 export function daysLabel(daysLeft: number): string {
   if (daysLeft < 0) return `${Math.abs(daysLeft)}d overdue`;
@@ -58,14 +58,12 @@ interface TileProps {
   daysLeft: number;
   urgency: UrgencyLevel;
   icon: LucideIcon | null;
-  /** the soonest due item on the board */
-  isSoonest?: boolean;
   /** Snap the tile to the row edge while a narrow lane scrolls. */
   snap?: boolean;
   hot?: boolean;
   selected?: boolean;
-  /** entrance stagger index (largest-first = 0); undefined = no entrance */
-  index?: number;
+  /** Keyboard dismissal skips layout motion. */
+  layoutMotion?: boolean;
   onHoverChange?: (id: string | null) => void;
   onSelect?: (id: string) => void;
   onOpen?: (id: string) => void;
@@ -86,11 +84,10 @@ function TileInner({
   daysLeft,
   urgency,
   icon: Icon,
-  isSoonest,
   snap,
   hot,
   selected,
-  index,
+  layoutMotion = true,
   onHoverChange,
   onSelect,
   onOpen,
@@ -110,15 +107,11 @@ function TileInner({
   return (
     <motion.button
       type="button"
-      layout={!reduced}
+      layout={!reduced && layoutMotion}
       layoutId={id}
-      initial={index != null && !reduced ? { opacity: 0, scale: 0.92 } : false}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.92 }}
-      transition={{
-        ...SMOOTH_SPRING,
-        ...(index != null && !reduced ? { delay: Math.min(index * 0.03, 0.6) } : {}),
-      }}
+      initial={false}
+      exit={{ opacity: 0 }}
+      transition={reduced || !layoutMotion ? { duration: 0 } : { layout: SMOOTH_SPRING }}
       data-tile-id={id}
       data-category-id={categoryId}
       onClick={() => onSelect?.(id)}

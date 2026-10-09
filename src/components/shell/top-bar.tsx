@@ -11,7 +11,7 @@ export function TopBar({ email }: { email: string }) {
   }
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-rule bg-surface px-4">
+    <header className="chrome flex min-h-14 shrink-0 items-center justify-between border-b border-white/50 px-4 pt-[env(safe-area-inset-top)]">
       <div className="flex items-baseline gap-2.5">
         <span aria-hidden className="mt-1 inline-block size-3 bg-ink" />
         <span className="font-display text-lg font-semibold tracking-[-0.01em]">SirenDeck</span>

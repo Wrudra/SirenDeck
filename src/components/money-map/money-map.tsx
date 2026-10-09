@@ -53,6 +53,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [requestedZoomId, setZoomId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [layoutMotion, setLayoutMotion] = useState(true);
   const [donePending, startDone] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -82,8 +83,12 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
+      setLayoutMotion(false);
       if (requestedZoomId) setZoomId(null);
       else setSelectedId(null);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setLayoutMotion(true));
+      });
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -91,14 +96,6 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
 
   const model = useMemo(() => buildMapModel(items), [items]);
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
-
-  /** The soonest due item on the board · the porcelain hairline subject. */
-  const soonestId = useMemo(() => {
-    const ranked = [...items].sort(
-      (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime(),
-    );
-    return ranked[0]?.id ?? null;
-  }, [items]);
 
   const entries = useMemo<GroupDatum[]>(() => {
     const groups = new Map<string, MapItem[]>();
@@ -268,11 +265,11 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
             </button>
             <span className="text-ink-muted">·</span>
             {zoomId === OTHER_GROUP_ID ? (
-              <span className="truncate">
+              <span className="min-w-0 truncate">
                 Other <span className="text-ink-muted">({otherLabel})</span>
               </span>
             ) : (
-              <span className="truncate">{categoryById.get(zoomId)?.name ?? "Category"}</span>
+              <span className="min-w-0 truncate">{categoryById.get(zoomId)?.name ?? "Category"}</span>
             )}
             {(sectionTotals.get(zoomId)?.length ?? 0) > 0 && (
               <span
@@ -347,7 +344,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                 })}
               <AnimatePresence>
                 {groupRects.flatMap((group) =>
-                  group.children.map((child, i) => {
+                  group.children.map((child) => {
                     const item = itemById.get(child.id);
                     if (!item) return null;
                     return (
@@ -365,10 +362,9 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                         daysLeft={item.daysLeft}
                         urgency={item.urgency}
                         icon={iconFor(categoryById.get(item.categoryId))}
-                        isSoonest={child.id === soonestId}
                         hot={child.id === hoveredId}
                         selected={child.id === selectedId}
-                        index={i}
+                        layoutMotion={layoutMotion}
                         onHoverChange={setHoveredId}
                         onSelect={onTileSelect}
                         onOpen={openEdit}

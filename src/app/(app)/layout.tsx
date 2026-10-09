@@ -12,10 +12,13 @@ export default async function AppLayout({
   const email = user.email ?? "account";
 
   return (
-    <div className="flex h-dvh flex-col">
+    <div className="app-frame flex h-dvh flex-col">
       <TopBar email={email} />
       <main id="main-content" className="flex flex-1 flex-col overflow-hidden">{children}</main>
-      <Toaster position="bottom-right" />
+      <Toaster
+        position="bottom-right"
+        offset="calc(16px + env(safe-area-inset-bottom, 0px))"
+      />
     </div>
   );
 }

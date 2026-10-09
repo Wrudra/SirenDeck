@@ -40,7 +40,7 @@ function DialogOverlay({
       data-slot="dialog-overlay"
       className={cn(
         // Ink wash — no glass blur. Overlay shadow is reserved for the panel itself.
-        "fixed inset-0 isolate z-50 bg-ink/25 duration-150 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-ink/25 duration-[var(--duration-modal)] ease-[var(--ease-out)] data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -62,9 +62,9 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-[var(--radius-dialog)] border border-rule bg-surface p-4 text-sm text-ink outline-none duration-150 sm:max-w-sm",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-[var(--radius-dialog)] border border-rule bg-surface p-4 text-sm text-ink outline-none duration-[var(--duration-modal)] ease-[var(--ease-out)] sm:max-w-sm",
           "shadow-[0_8px_24px_rgb(20_19_17/0.16),0_2px_8px_rgb(20_19_17/0.10)]",
-          "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "origin-center data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}

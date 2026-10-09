@@ -64,10 +64,17 @@
 
   --destructive: #141311;
 
-  /* motion — expo-out for the authored moment */
-  --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  /* Motion tokens from emilkowalski/skills. One set; old names alias these. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-fluid: var(--ease-drawer);
+  --ease-out-expo: var(--ease-out);
+  --ease-standard: var(--ease-out);
+  --duration-press: 140ms;
+  --duration-pop: 160ms;
+  --duration-menu: 180ms;
+  --duration-modal: 220ms;
 
   --radius-tile: 2px;
   --radius-dialog: 6px;
@@ -156,29 +163,46 @@
   --radius-dialog: 6px;
   --radius-control: 3px;
 
-  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  --ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --ease-standard: var(--ease-out);
+  --ease-decelerate: var(--ease-out);
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
-    --ease-fluid: linear;
-    --ease-out-expo: linear;
-    --ease-standard: linear;
-    --ease-decelerate: linear;
+    --ease-out: linear;
+    --ease-in-out: linear;
+    --ease-drawer: linear;
   }
 }
 
-/* ── Browser surfaces — the parts we did not draw still carry the world ── */
+/* ── Browser surfaces ── */
 html {
   color-scheme: light;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   background: var(--bg);
   color: var(--ink);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: system-ui, sans-serif;
   caret-color: var(--ink);
+}
+
+button,
+a,
+[role="button"] {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
 }
 
 ::selection {
@@ -224,16 +248,11 @@ body {
     0 10px 24px -14px rgb(20 19 17 / 0.55);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .plate {
-    transition: transform 200ms var(--ease-out-expo);
-  }
-  .plate:hover {
-    transform: scale(1.02);
-  }
-  .plate:active {
-    transform: scale(0.98);
-  }
+.plate {
+  transition: transform var(--duration-press) var(--ease-out);
+}
+.plate:active {
+  transform: scale(0.97);
 }
 
 /* Tabular figures for every number that can change. */
@@ -241,9 +260,20 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Editorial display serif class (font set via --font-display). */
+/* Display uses the system face. Tracking tightens as size grows. */
 .font-display {
-  font-family: var(--font-display), Georgia, serif;
+  font-family: system-ui, sans-serif;
+  font-optical-sizing: auto;
+  letter-spacing: -0.02em;
+}
+
+.chrome {
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+.app-frame {
+  overscroll-behavior: none;
 }
 
 /* ── The one authored moment: rerank in place ───────────────────────────
@@ -256,8 +286,12 @@ body {
 /* ── Landing scroll reveal (opacity/translate/blur only) ──────────────── */
 .reveal-init {
   opacity: 0;
-  transform: translateY(2.5rem);
-  filter: blur(8px);
+  transform: translateY(8px);
+  filter: blur(2px);
+  transition:
+    opacity 280ms var(--ease-out),
+    transform 280ms var(--ease-out),
+    filter 280ms ease;
 }
 
 .reveal-in {
@@ -282,5 +316,26 @@ body {
     transform: none;
     filter: none;
     transition: none;
+  }
+
+  .plate:active,
+  button:active,
+  [role="button"]:active {
+    transform: none;
+  }
+
+  [data-slot="dialog-content"],
+  [data-slot="dialog-overlay"],
+  [data-slot="dropdown-menu-content"],
+  [data-slot="dropdown-menu-sub-content"],
+  [data-slot="select-content"] {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .chrome {
+    background: var(--surface);
+    backdrop-filter: none;
   }
 }

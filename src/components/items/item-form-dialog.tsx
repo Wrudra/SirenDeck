@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useId, useRef, useState } from "react";
+import { useActionState, useCallback, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -71,18 +71,23 @@ export function ItemFormDialog({
   const isEdit = item != null;
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const open = controlledOpen ?? uncontrolledOpen;
-  const setOpen = useCallback(
-    (next: boolean) => {
-      setUncontrolledOpen(next);
-      onOpenChange?.(next);
-    },
-    [onOpenChange],
-  );
   const formRef = useRef<HTMLFormElement>(null);
   const uid = useId();
   const [autoRenews, setAutoRenews] = useState(item?.autoRenews ?? false);
   const [period, setPeriod] = useState(
     item?.recurrence && item.recurrence !== "none" ? item.recurrence : "monthly",
+  );
+  const setOpen = useCallback(
+    (next: boolean) => {
+      if (next) {
+        setAutoRenews(item?.autoRenews ?? false);
+        setPeriod(item?.recurrence && item.recurrence !== "none" ? item.recurrence : "monthly");
+        if (!isEdit) formRef.current?.reset();
+      }
+      setUncontrolledOpen(next);
+      onOpenChange?.(next);
+    },
+    [onOpenChange, isEdit, item],
   );
 
   // Wrap the server action so success handling (close + toast) happens in the
@@ -100,14 +105,6 @@ export function ItemFormDialog({
     },
     idleState,
   );
-
-  // Reset the form whenever the dialog re-opens (Add mode).
-  useEffect(() => {
-    if (!open) return;
-    setAutoRenews(item?.autoRenews ?? false);
-    setPeriod(item?.recurrence && item.recurrence !== "none" ? item.recurrence : "monthly");
-    if (!isEdit) formRef.current?.reset();
-  }, [open, isEdit, item?.id, item?.autoRenews, item?.recurrence]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

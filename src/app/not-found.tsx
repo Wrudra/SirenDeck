@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function NotFound() {
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-bg px-6">
+    <main className="flex min-h-svh items-center justify-center bg-bg px-6">
       <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
         <p className="ledger-cap tabular text-[11px] text-ink-muted">404</p>
         <h1 className="font-display text-3xl font-semibold tracking-[-0.01em]" style={{ textWrap: "balance" }}>
