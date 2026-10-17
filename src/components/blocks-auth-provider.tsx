@@ -33,11 +33,8 @@ export function BlocksAuthProvider({ children }: { children: React.ReactNode }) 
   const [claims, setClaims] = useState<SessionClaims>(null);
 
   const refresh = useCallback(async () => {
-    if (!configured) {
-      setStatus("unauthenticated");
-      setClaims(null);
-      return;
-    }
+    // Status is already "unauthenticated" by initialization; nothing to fetch.
+    if (!configured) return;
     try {
       // userInfo can hang on cold cookie miss; bound wait so login CTA is usable
       const next = await Promise.race([
@@ -58,7 +55,12 @@ export function BlocksAuthProvider({ children }: { children: React.ReactNode }) 
   }, [configured]);
 
   useEffect(() => {
-    void refresh();
+    // Initial + periodic session probe. All setState happens after the first
+    // await inside refresh, so no synchronous cascading renders here.
+    const probe = () => {
+      void refresh();
+    };
+    probe();
     if (!configured) return;
     const id = window.setInterval(() => void refresh(), STATUS_POLL_MS);
     const onVisible = () => {

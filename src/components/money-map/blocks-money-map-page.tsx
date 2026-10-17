@@ -40,12 +40,13 @@ export function BlocksMoneyMapPage({
   const [adding, setAdding] = useState(false);
 
   const reload = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+    // No synchronous setState here: the initial load starts with `loading`
+    // already true, and every state write happens after the first await.
     try {
       const [cats, items] = await Promise.all([getOrSeedCategories(), listItems()]);
       setCategories(cats);
       setAllItems(items.filter((i) => i.status === "active" || i.status === "snoozed"));
+      setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load Blocks data");
     } finally {
@@ -54,8 +55,26 @@ export function BlocksMoneyMapPage({
   }, []);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const [cats, items] = await Promise.all([getOrSeedCategories(), listItems()]);
+        if (cancelled) return;
+        setCategories(cats);
+        setAllItems(items.filter((i) => i.status === "active" || i.status === "snoozed"));
+        setError(null);
+      } catch (e) {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : "Failed to load Blocks data");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const items = useMemo(() => applyFilters(allItems, filters), [allItems, filters]);
 
