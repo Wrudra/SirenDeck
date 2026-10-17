@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <div className="min-h-svh bg-bg text-ink">
-      <header className="chrome sticky top-0 z-50 border-b border-white/50 pt-[env(safe-area-inset-top)] dark:border-rule">
+      <header className="sticky top-0 z-50 pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
           <Link
             href="/"

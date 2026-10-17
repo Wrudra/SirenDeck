@@ -137,7 +137,7 @@ export function FilterBar({
     <div
       role="region"
       aria-label="Filters"
-      className="flex flex-col gap-2 border-b border-rule bg-surface px-3 py-2 sm:flex-row sm:items-center sm:gap-2 sm:px-4 sm:py-2"
+      className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:gap-2 sm:px-4 sm:py-2"
     >
       <div className="flex min-w-0 items-center gap-2">
         {/* search */}

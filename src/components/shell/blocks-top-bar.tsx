@@ -8,7 +8,7 @@ export function BlocksTopBar({ email }: { email: string }) {
   const { logout } = useBlocksAuth();
 
   return (
-    <header className="chrome flex min-h-14 shrink-0 items-center justify-between border-b border-white/50 px-4 pt-[env(safe-area-inset-top)] dark:border-rule">
+    <header className="flex min-h-14 shrink-0 items-center justify-between px-4 pt-[env(safe-area-inset-top)]">
       <Logo />
       <div className="flex items-center gap-2">
         <ThemeSwitcher />
