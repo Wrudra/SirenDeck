@@ -5,7 +5,7 @@ import { useState } from "react";
 import { useBlocksAuth } from "@/components/blocks-auth-provider";
 
 export function BlocksLoginButton({ returnTo = "/app" }: { returnTo?: string }) {
-  const { configured, login, status } = useBlocksAuth();
+  const { configured, login } = useBlocksAuth();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,8 +49,9 @@ export function BlocksLoginButton({ returnTo = "/app" }: { returnTo?: string }) 
         </p>
       ) : (
         <p className="text-xs text-ink-muted">
-          Hosted email + password login. Requires HTTPS on the project domain for the session cookie
-          to stick (plain localhost will redirect but not stay signed in).
+          Hosted email + password login via Blocks IAM. Locally, all gateway calls are proxied
+          same-origin through <code className="font-mono text-[11px]">/blocks-gw</code>; session
+          tokens persist in <code className="font-mono text-[11px]">localStorage</code>.
         </p>
       )}
     </div>
