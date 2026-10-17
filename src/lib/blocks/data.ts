@@ -115,6 +115,16 @@ function mutationItemId(res: unknown, field: string): string {
   return str(payload.itemId);
 }
 
+/** Surface gateway rejections the SDK resolves without throwing. */
+function assertMutationOk(res: unknown, label: string): void {
+  const body = res as { isSuccess?: unknown; message?: unknown; httpStatusCode?: unknown } | null;
+  if (body && body.isSuccess === false) {
+    throw new Error(
+      `${label} failed: ${str(body.message) || `HTTP ${String(body.httpStatusCode ?? "error")}`}`,
+    );
+  }
+}
+
 export function categoriesCollection() {
   return getBlocksClient().data.collection<BlocksRecord>("Category", {
     fields: [...CATEGORY_FIELDS],
@@ -240,19 +250,21 @@ export async function markDoneItem(item: ItemRow): Promise<ItemRow> {
   if (item.auto_renews && item.recurrence !== "none") {
     const dueDate = completeCycle(item.due_date, item.recurrence, new Date());
     if (!dueDate) throw new Error("Could not mark done.");
-    await itemsCollection().update(item.id, {
+    const res = await itemsCollection().update(item.id, {
       dueDate: `${dueDate}T00:00:00.000Z`,
       status: "active",
       snoozedUntil: null,
     });
+    assertMutationOk(res, "Mark done");
     return { ...item, due_date: dueDate, status: "active", snoozed_until: null };
   }
   const completedAt = new Date().toISOString();
-  await itemsCollection().update(item.id, {
+  const res = await itemsCollection().update(item.id, {
     status: "done",
     snoozedUntil: null,
     completedAt,
   });
+  assertMutationOk(res, "Mark done");
   return { ...item, status: "done", snoozed_until: null, completed_at: completedAt };
 }
 
@@ -266,16 +278,20 @@ export async function snoozeItem(
   }
   const snoozedUntil = new Date();
   snoozedUntil.setDate(snoozedUntil.getDate() + days);
-  const iso = snoozedUntil.toISOString().slice(0, 10);
-  await itemsCollection().update(item.id, {
+  // DateTime fields expect a full ISO timestamp; a date-only string is
+  // silently dropped by the gateway (observed live: snooze no-ops).
+  const iso = `${snoozedUntil.toISOString().slice(0, 10)}T00:00:00.000Z`;
+  const res = await itemsCollection().update(item.id, {
     status: "snoozed",
     snoozedUntil: iso,
   });
-  return { ...item, status: "snoozed", snoozed_until: iso };
+  assertMutationOk(res, "Snooze");
+  return { ...item, status: "snoozed", snoozed_until: asDateOnly(iso) };
 }
 
 export async function deleteItem(id: string): Promise<void> {
-  await itemsCollection().delete(id);
+  const res = await itemsCollection().delete(id);
+  assertMutationOk(res, "Delete");
 }
 
 /**
