@@ -224,7 +224,8 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
   const solo = model.tiles.length === 1 && model.other == null;
   const activeId = solo ? model.tiles[0].id : (selectedId ?? hoveredId ?? focusedId);
   const activeItem = activeId ? (itemById.get(activeId) ?? null) : null;
-  const activeAnchor = useMemo<TileBox | null>(() => {
+  // Computed per render; React Compiler memoizes when enabled.
+  const activeAnchor: TileBox | null = (() => {
     if (!activeId || !groupRects) return null;
     for (const group of groupRects) {
       for (const child of group.children) {
@@ -238,7 +239,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
       }
     }
     return null;
-  }, [activeId, groupRects]);
+  })();
   const onDone = useCallback(() => {
     if (!activeItem) return;
     const id = activeItem.id;

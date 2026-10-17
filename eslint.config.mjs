@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored agent tooling — CommonJS by design, not app code.
+    ".agents/**",
   ]),
 ]);
 

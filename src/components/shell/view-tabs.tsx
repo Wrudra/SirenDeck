@@ -43,23 +43,33 @@ export function ViewProvider({
 }) {
   const router = useRouter();
   const queryRef = useRef(query);
-  queryRef.current = query;
   const [, startTransition] = useTransition();
   const [picked, setPicked] = useState<AppView | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    queryRef.current = query;
+  }, [query]);
+
+  useEffect(() => {
     const mq = window.matchMedia("(max-width: 767px)");
     const update = () => setIsMobile(mq.matches);
-    update();
-    setReady(true);
+    // ready flips after paint via microtask: no synchronous setState.
+    void Promise.resolve().then(() => {
+      update();
+      setReady(true);
+    });
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
   }, []);
 
   useEffect(() => {
-    if (picked && serverView === picked) setPicked(null);
+    if (picked === null) return;
+    if (serverView !== picked) return;
+    const id = window.setTimeout(() => setPicked(null), 0);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [picked, serverView]);
 
   const fromServer: AppView =

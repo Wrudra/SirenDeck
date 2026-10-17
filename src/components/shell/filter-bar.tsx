@@ -90,19 +90,23 @@ export function FilterBar({
   const searchParams = useSearchParams();
   const [, startTransition] = useTransition();
   const searchRef = useRef(searchParams);
-  searchRef.current = searchParams;
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    searchRef.current = searchParams;
+  }, [searchParams]);
 
   // The field owns what the user is typing. The URL is applied back only
   // when focus is elsewhere (back/forward, clear, chip), so keystrokes
   // are never replaced by a slower server render.
   const [q, setQ] = useState(filters.q);
   const [prevUrlQ, setPrevUrlQ] = useState(filters.q);
+  const [inputFocused, setInputFocused] = useState(false);
+  // React's documented adjust-state-on-prop-change pattern; focus comes
+  // from input events, never from reading refs during render.
   if (filters.q !== prevUrlQ) {
     setPrevUrlQ(filters.q);
-    const focused =
-      typeof document !== "undefined" && document.activeElement === inputRef.current;
-    if (!focused) setQ(filters.q);
+    if (!inputFocused) setQ(filters.q);
   }
 
   const setParam = (updates: Record<string, string | null>) => {
@@ -147,6 +151,8 @@ export function FilterBar({
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
+            onFocus={() => setInputFocused(true)}
+            onBlur={() => setInputFocused(false)}
             placeholder="Search titles or notes…"
             aria-label="Search items"
             autoComplete="off"
