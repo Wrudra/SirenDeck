@@ -254,18 +254,14 @@ body {
   caret-color: var(--ink);
 }
 
-/* Theme switch fade: armed only for a user-initiated switch (see
-   theme-provider), so first paint and system flips stay instant. */
-html.theme-switching,
-html.theme-switching *,
-html.theme-switching *::before,
-html.theme-switching *::after {
-  transition:
-    background-color 180ms ease,
-    border-color 180ms ease,
-    color 180ms ease,
-    fill 180ms ease,
-    stroke 180ms ease !important;
+/* Animated theme switch: the provider wraps the class flip in
+   document.startViewTransition(), so the browser snapshots the page and
+   cross-fades the two states on the compositor — one GPU fade instead of
+   hundreds of simultaneous per-element color transitions. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 260ms;
+  animation-timing-function: ease;
 }
 
 button,
@@ -390,11 +386,6 @@ a,
   button:active,
   [role="button"]:active {
     transform: none;
-  }
-
-  html.theme-switching,
-  html.theme-switching * {
-    transition: none !important;
   }
 
   [data-slot="dialog-content"],

@@ -85,23 +85,29 @@ function getServerSystemDark(): boolean {
 
 /* DOM application. */
 
-export function applyTheme(resolved: Resolved, animate = false) {
+export function applyTheme(resolved: Resolved) {
   const root = document.documentElement;
-
-  if (
-    animate &&
-    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  ) {
-    root.classList.add("theme-switching");
-    const disarm = () => root.classList.remove("theme-switching");
-    root.addEventListener("transitionend", disarm, { once: true });
-    /* transitionend is unreliable across many simultaneous transitions
-       (bubbles per-element, can be swallowed); back it up with a timer. */
-    window.setTimeout(disarm, 260);
-  }
-
   root.classList.toggle("dark", resolved === "dark");
   root.style.colorScheme = resolved;
+}
+
+/* Animated switch via the View Transitions API: the browser snapshots the
+   page, applies the class change, then cross-fades the two snapshots on the
+   compositor. One GPU fade replaces hundreds of per-element transitions,
+   which is what made the old .theme-switching crossfade stutter. */
+function animateThemeChange(resolved: Resolved) {
+  if (
+    !("startViewTransition" in document) ||
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
+    applyTheme(resolved);
+    return;
+  }
+  const transition = document.startViewTransition(() => applyTheme(resolved));
+  /* ready rejects when a transition is skipped or superseded (rapid clicks,
+     hidden tab). The theme is already applied by then; swallow the noise. */
+  transition.ready.catch(() => {});
+  transition.finished.catch(() => {});
 }
 
 interface ThemeContextValue {
@@ -130,7 +136,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   /* First paint is handled by the pre-hydration script in layout.tsx; this
      effect keeps the DOM in sync across theme changes and system flips. */
   useEffect(() => {
-    applyTheme(resolvedTheme, false);
+    applyTheme(resolvedTheme);
   }, [resolvedTheme]);
 
   const setTheme = useCallback((next: Theme) => {
@@ -141,7 +147,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           ? "dark"
           : "light"
         : next;
-    applyTheme(resolved, true);
+    animateThemeChange(resolved);
   }, []);
 
   const value = useMemo(
