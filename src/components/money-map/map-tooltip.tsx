@@ -114,7 +114,7 @@ export function MapTooltip({
             {item.amount != null && item.amount > 0
               ? formatCost(item.amount, item.currency)
               : "No amount"}
-            <span className="ml-2 font-normal text-ink-muted">{item.dueDate}</span>
+            <span className="ml-2 font-normal text-ink-muted">{" "}{item.dueDate}</span>
           </p>
           <div className="mt-3 flex items-center gap-2">
             {onDone && (

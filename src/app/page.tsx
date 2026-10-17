@@ -21,20 +21,14 @@ export default function Home() {
           >
             <Logo />
           </Link>
-          <div className="flex items-center gap-6">
-            <Link
-              href="/login"
-              className="text-sm text-ink-muted transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              Sign in
-            </Link>
-            <Link
-              href="/login"
-              className="plate rounded-[var(--radius-control)] px-3.5 py-1.5 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              Sign in
-            </Link>
-          </div>
+                   <div className="flex items-center gap-6">
+                     <Link
+                       href="/login"
+                       className="plate rounded-[var(--radius-control)] px-3.5 py-1.5 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                     >
+                       Sign in
+                     </Link>
+                   </div>
         </div>
       </header>
 

@@ -15,19 +15,18 @@ export type BlocksRuntimeConfig = {
   xBlocksKey: string;
 };
 
-function read(name: string): string {
-  return (process.env[name] ?? "").trim();
-}
-
 export function getBlocksConfig(): BlocksRuntimeConfig {
   return {
-    apiUrl: read("NEXT_PUBLIC_BLOCKS_API_URL"),
-    appDomain: read("NEXT_PUBLIC_BLOCKS_APP_DOMAIN"),
-    oidcClientId: read("NEXT_PUBLIC_BLOCKS_OIDC_CLIENT_ID"),
+    // Literal process.env.NEXT_PUBLIC_* references are required: Next.js
+    // inlines them into the client bundle at build time; dynamic lookups
+    // like process.env[name] are undefined in the browser.
+    apiUrl: (process.env.NEXT_PUBLIC_BLOCKS_API_URL ?? "").trim(),
+    appDomain: (process.env.NEXT_PUBLIC_BLOCKS_APP_DOMAIN ?? "").trim(),
+    oidcClientId: (process.env.NEXT_PUBLIC_BLOCKS_OIDC_CLIENT_ID ?? "").trim(),
     // SDK default scope when unset; not project-specific.
-    oidcScope: read("NEXT_PUBLIC_BLOCKS_OIDC_SCOPE") || "openid profile",
-    oidcUrl: read("NEXT_PUBLIC_BLOCKS_OIDC_URL"),
-    xBlocksKey: read("NEXT_PUBLIC_BLOCKS_KEY"),
+    oidcScope: (process.env.NEXT_PUBLIC_BLOCKS_OIDC_SCOPE ?? "").trim() || "openid profile",
+    oidcUrl: (process.env.NEXT_PUBLIC_BLOCKS_OIDC_URL ?? "").trim(),
+    xBlocksKey: (process.env.NEXT_PUBLIC_BLOCKS_KEY ?? "").trim(),
   };
 }
 
