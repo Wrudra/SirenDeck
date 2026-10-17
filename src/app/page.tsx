@@ -6,6 +6,7 @@ import { Logo } from "@/components/brand/logo";
 import { DepartureBoard } from "@/components/marketing/departure-board";
 import { LandingAuth } from "@/components/landing-auth";
 import { Reveal } from "@/components/reveal";
+import { ThemeSwitcher } from "@/components/theme-switcher";
 
 export const metadata: Metadata = {
   title: "SirenDeck: see everything that renews, before it costs you",
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <div className="min-h-svh bg-bg text-ink">
-      <header className="chrome sticky top-0 z-50 border-b border-white/50 pt-[env(safe-area-inset-top)]">
+      <header className="chrome sticky top-0 z-50 border-b border-white/50 pt-[env(safe-area-inset-top)] dark:border-rule">
         <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-6">
           <Link
             href="/"
@@ -24,12 +25,15 @@ export default function Home() {
           >
             <Logo />
           </Link>
-          <LandingAuth />
+          <div className="flex items-center gap-3">
+            <ThemeSwitcher />
+            <LandingAuth />
+          </div>
         </div>
       </header>
 
       <main>
-        <section className="mx-auto max-w-5xl px-6 pt-20 pb-20 md:pt-28">
+        <section className="mx-auto max-w-5xl px-6 pt-14 pb-20 md:pt-16">
           <Reveal>
             <h1 className="font-display max-w-[14ch] text-[clamp(2.5rem,5vw,3.5rem)] leading-[1.05] font-semibold tracking-[-0.02em] text-balance">
               Every deadline, before it costs you

@@ -11,20 +11,20 @@ import { labelBudget, titleMonogram } from "@/lib/map/label-budget";
 
 /** Soft wash of the urgency hue on white. The days figure carries the solid hue. */
 export const URGENCY_WASH: Record<UrgencyLevel, string> = {
-  calm: "color-mix(in srgb, var(--heat-calm) 22%, white)",
-  soon: "color-mix(in srgb, var(--heat-soon) 28%, white)",
-  urgent: "color-mix(in srgb, var(--heat-urgent) 32%, white)",
-  critical: "color-mix(in srgb, var(--heat-critical) 28%, white)",
-  overdue: "color-mix(in srgb, var(--heat-overdue) 24%, white)",
+  calm: "color-mix(in srgb, var(--heat-calm) 22%, var(--wash-base))",
+  soon: "color-mix(in srgb, var(--heat-soon) 28%, var(--wash-base))",
+  urgent: "color-mix(in srgb, var(--heat-urgent) 32%, var(--wash-base))",
+  critical: "color-mix(in srgb, var(--heat-critical) 28%, var(--wash-base))",
+  overdue: "color-mix(in srgb, var(--heat-overdue) 24%, var(--wash-base))",
 };
 
 /** Darker than the wash so the day count stays readable. */
 export const URGENCY_INK: Record<UrgencyLevel, string> = {
-  calm: "#0e7a43",
-  soon: "#4d7c12",
-  urgent: "#8a5a00",
-  critical: "#a33b10",
-  overdue: "#c42323",
+  calm: "var(--heat-ink-calm)",
+  soon: "var(--heat-ink-soon)",
+  urgent: "var(--heat-ink-urgent)",
+  critical: "var(--heat-ink-critical)",
+  overdue: "var(--heat-ink-overdue)",
 };
 
 /** Kept so existing imports of the fill class still resolve. */

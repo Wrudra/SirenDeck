@@ -4,6 +4,7 @@ import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
 import { BlocksAuthProvider } from "@/components/blocks-auth-provider";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
@@ -15,10 +16,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
-  colorScheme: "light",
+  colorScheme: "light dark",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f5f5f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#f5f5f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#111114" },
   ],
 };
 
@@ -38,7 +39,14 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("sirendeck-theme");var d=t==="dark"||(t!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches);var e=document.documentElement;e.classList.toggle("dark",d);e.style.colorScheme=d?"dark":"light";}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body
         className={`${jetbrainsMono.variable} antialiased`}
       >
@@ -48,7 +56,9 @@ export default function RootLayout({
         >
           Skip to content
         </a>
-        <BlocksAuthProvider>{children}</BlocksAuthProvider>
+        <BlocksAuthProvider>
+          <ThemeProvider>{children}</ThemeProvider>
+        </BlocksAuthProvider>
       </body>
     </html>
   );

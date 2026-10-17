@@ -94,7 +94,7 @@ export function MapTooltip({
           animate={{ opacity: 1, x: pos.x, y: pos.y }}
           exit={{ opacity: 0, transition: { duration: reduced ? 0 : 0.1, ease: EASE } }}
           transition={{ opacity: { duration: reduced ? 0 : 0.12, ease: EASE }, x: move, y: move }}
-          className="pointer-events-auto absolute top-0 left-0 z-30 w-[248px] rounded-2xl bg-white p-3 text-ink shadow-[0_12px_32px_rgb(0_0_0/0.18)]"
+          className="pointer-events-auto absolute top-0 left-0 z-30 w-[248px] rounded-2xl bg-surface p-3 text-ink shadow-[0_12px_32px_rgb(0_0_0/0.18)]"
         >
           <div className="flex items-start gap-2.5">
             <span aria-hidden className={cn("mt-1 size-2 shrink-0 rounded-full", fill)} />

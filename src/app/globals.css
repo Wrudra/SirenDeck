@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Class-based dark mode: `.dark` on <html> (set by theme provider and the
+   pre-hydration script in layout.tsx), not the OS media query. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Neutral system surfaces. Urgency on the map stays the heatmap.
    Motion tokens below are the emilkowalski curves. */
 
@@ -7,6 +11,7 @@
   --bg: #f5f5f7;
   --surface: #ffffff;
   --surface-2: #ececf1;
+  --canvas: var(--bg);
 
   --rule: #e5e5ea;
   --rule-strong: #c7c7cc;
@@ -39,6 +44,14 @@
   --heat-urgent: #f0c14d;
   --heat-critical: #f08a4a;
   --heat-overdue: #ef5350;
+
+  /* Tile washes mix toward this; tile day-count inks. */
+  --wash-base: #ffffff;
+  --heat-ink-calm: #0e7a43;
+  --heat-ink-soon: #4d7c12;
+  --heat-ink-urgent: #8a5a00;
+  --heat-ink-critical: #a33b10;
+  --heat-ink-overdue: #c42323;
 
   --urgency-calm-text: #6e6e73;
   --urgency-soon-text: #515154;
@@ -87,10 +100,69 @@
   --radius: 10px;
 }
 
+/* ── Dark mode ────────────────────────────────────────────────────────────
+   Same hue logic, inverted neutrals. Heat colors get less white in the
+   wash (they sit on near-black gutters) and lighter inks for contrast. */
+.dark {
+  --bg: #111114;
+  --surface: #1c1c20;
+  --surface-2: #26262b;
+  --canvas: var(--bg);
+
+  --rule: #2c2c31;
+  --rule-strong: #48484d;
+  --rule-input: #5a5a60;
+
+  --ink: #f5f5f7;
+  --ink-muted: #98989d;
+
+  --heat-bg: #000000;
+  --heat-rule: #000000;
+  --heat-ink: #f4f4f5;
+  --heat-ink-muted: rgba(244, 244, 245, 0.64);
+
+  --heat-calm: #34b97e;
+  --heat-soon: #8bbf4f;
+  --heat-urgent: #e0af3e;
+  --heat-critical: #e07c3c;
+  --heat-overdue: #ef5350;
+
+  /* Washes mix toward the dark surface; inks lighten for contrast. */
+  --wash-base: #1c1c20;
+  --heat-ink-calm: #6fe0a8;
+  --heat-ink-soon: #c4e08a;
+  --heat-ink-urgent: #f2cd77;
+  --heat-ink-critical: #f2a877;
+  --heat-ink-overdue: #f78e8b;
+
+  --accent: #f5f5f7;
+  --accent-ink: #111114;
+  --ring: #f5f5f7;
+
+  --destructive: #f97066;
+
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-ink);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--ink-muted);
+  --accent-foreground: var(--accent-ink);
+  --input: var(--rule);
+  --border: var(--rule);
+}
+
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-canvas: var(--canvas);
   --color-rule: var(--rule);
   --color-rule-strong: var(--rule-strong);
   --color-rule-input: var(--rule-input);
@@ -165,9 +237,14 @@
 
 /* ── Browser surfaces ── */
 html {
-  color-scheme: light;
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
+}
+html:root {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
 }
 
 body {
@@ -175,6 +252,20 @@ body {
   color: var(--ink);
   font-family: system-ui, sans-serif;
   caret-color: var(--ink);
+}
+
+/* Theme switch fade: armed only for a user-initiated switch (see
+   theme-provider), so first paint and system flips stay instant. */
+html.theme-switching,
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    fill 180ms ease,
+    stroke 180ms ease !important;
 }
 
 button,
@@ -210,8 +301,7 @@ a,
   background: var(--rule-strong);
   border: 3px solid var(--bg);
   border-radius: 5px;
-}
-::-webkit-scrollbar-track {
+}::-webkit-scrollbar-track {
   background: transparent;
 }
 
@@ -300,6 +390,11 @@ a,
   button:active,
   [role="button"]:active {
     transform: none;
+  }
+
+  html.theme-switching,
+  html.theme-switching * {
+    transition: none !important;
   }
 
   [data-slot="dialog-content"],
