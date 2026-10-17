@@ -36,15 +36,3 @@ export function isBlocksLoginConfigured(): boolean {
   const c = getBlocksConfig();
   return Boolean(c.apiUrl && c.oidcUrl && c.oidcClientId && c.xBlocksKey);
 }
-
-/**
- * Auth surface selector for the dual-run period on `dev`.
- * - `blocks` (default when Blocks env is complete): hosted OIDC is primary
- * - `supabase`: keep legacy email/password form as primary
- */
-export function getAuthProviderPreference(): "blocks" | "supabase" {
-  const raw = read("NEXT_PUBLIC_AUTH_PROVIDER").toLowerCase();
-  if (raw === "supabase") return "supabase";
-  if (raw === "blocks") return "blocks";
-  return isBlocksLoginConfigured() ? "blocks" : "supabase";
-}

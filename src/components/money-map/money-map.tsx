@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 
 import { ItemFormDialog } from "@/components/items/item-form-dialog";
-import { markDone } from "@/lib/actions/items";
 import { buildMapModel, sumCategoryTotals, type MapItem } from "@/lib/map/map-model";
 import { fitSectionTotal, formatSectionTotal } from "@/lib/map/section-total";
 import {
@@ -53,11 +52,14 @@ export function MoneyMap({
   items,
   categories,
   onDone: settleOverride,
+  onChanged,
 }: {
   items: ItemRow[];
   categories: CategoryRow[];
-  /** Custom settle handler (Blocks data). Falls back to the Supabase server action. */
-  onDone?: (item: MapItem) => Promise<void>;
+  /** Settle handler backed by the app's data provider (Blocks). */
+  onDone: (item: MapItem) => Promise<void>;
+  /** Called after a successful add/edit from the map so hosts can refetch. */
+  onChanged?: () => void;
 }) {
   const [container, setContainer] = useState<{ w: number; h: number } | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -251,21 +253,12 @@ export function MoneyMap({
   })();
   const onDone = useCallback(
     (item: MapItem) => {
-      const id = item.id;
       startDone(async () => {
         try {
-          if (settleOverride) {
-            await settleOverride(item);
-          } else {
-            const result = await markDone(id);
-            if (result.ok) {
-              toast.success(result.rolled ? "Next cycle started" : "Marked done");
-              setSelectedId(null);
-              setHoveredId(null);
-            } else if (result.error) {
-              toast.error(result.error);
-            }
-          }
+          await settleOverride(item);
+          toast.success("Marked done");
+          setSelectedId(null);
+          setHoveredId(null);
         } catch (e) {
           toast.error(e instanceof Error ? e.message : "Could not mark done.");
         }
@@ -298,6 +291,7 @@ export function MoneyMap({
               </p>
               <ItemFormDialog
                 categories={categories}
+                onSaved={onChanged}
                 trigger={
                   <button
                     type="button"
@@ -470,6 +464,7 @@ export function MoneyMap({
           categories={categories}
           open
           onOpenChange={(next) => !next && closeEdit()}
+          onSaved={onChanged}
           item={{
             id: editingItem.id,
             title: editingItem.title,

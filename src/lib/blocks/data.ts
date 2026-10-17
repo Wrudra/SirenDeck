@@ -1,18 +1,24 @@
 "use client";
 
 /**
- * Incremental Data Gateway accessors for SirenDeck entities.
- * Ownership is enforced by CreatedBy policies on the gateway; these helpers
- * still map platform fields into the existing ItemRow/CategoryRow shapes so
- * Money Map UI can stay unchanged when we flip NEXT_PUBLIC_DATA_PROVIDER.
+ * Blocks Data Gateway accessors for SirenDeck entities — the app's only data
+ * backend. Ownership is enforced by CreatedBy policies on the gateway; these
+ * helpers map platform fields into the existing ItemRow/CategoryRow shapes.
  *
- * Not wired into server actions yet — those still use Supabase via requireUser.
- * Call from client components after Blocks OIDC session is established.
+ * Call from client components after the Blocks OIDC session is established.
  */
 
 import { getBlocksClient } from "./client";
 import { completeCycle } from "@/lib/map/cycle";
-import type { CategoryRow, Currency, ItemRow, Recurrence, Status } from "@/lib/validation/item";
+import {
+  CURRENCIES,
+  RECURRENCES,
+  type CategoryRow,
+  type Currency,
+  type ItemRow,
+  type Recurrence,
+  type Status,
+} from "@/lib/validation/item";
 
 type BlocksRecord = Record<string, unknown>;
 
@@ -226,7 +232,7 @@ export async function createItem(input: {
 }
 
 /**
- * Manual "done" on a Blocks item, mirroring the Supabase markDone action:
+ * Manual "done" on a Blocks item, mirroring the former Supabase markDone action:
  * renewing items roll to the next cycle via completeCycle; one-offs are
  * marked done. Returns the mapped row so callers can update local state.
  */
@@ -250,10 +256,103 @@ export async function markDoneItem(item: ItemRow): Promise<ItemRow> {
   return { ...item, status: "done", snoozed_until: null, completed_at: completedAt };
 }
 
-/** Data backend preference during dual-run. Set NEXT_PUBLIC_DATA_PROVIDER=blocks on Blocks deploys. */
-export function getDataProviderPreference(): "blocks" | "supabase" {
-  const raw = (process.env.NEXT_PUBLIC_DATA_PROVIDER ?? "").trim().toLowerCase();
-  if (raw === "supabase") return "supabase";
-  if (raw === "blocks") return "blocks";
-  return "blocks";
+/** Pause a deadline for 1–90 days, mirroring the former Supabase snoozeItem action. */
+export async function snoozeItem(
+  item: ItemRow,
+  days: number,
+): Promise<ItemRow> {
+  if (!Number.isInteger(days) || days < 1 || days > 90) {
+    throw new Error("Snooze must be between 1 and 90 days.");
+  }
+  const snoozedUntil = new Date();
+  snoozedUntil.setDate(snoozedUntil.getDate() + days);
+  const iso = snoozedUntil.toISOString().slice(0, 10);
+  await itemsCollection().update(item.id, {
+    status: "snoozed",
+    snoozedUntil: iso,
+  });
+  return { ...item, status: "snoozed", snoozed_until: iso };
 }
+
+export async function deleteItem(id: string): Promise<void> {
+  await itemsCollection().delete(id);
+}
+
+/**
+ * Server-action-shaped CRUD so the shared UI (form dialog, list actions)
+ * stays provider-agnostic. Mirrors the former Supabase addItem/updateItem actions.
+ */
+export type ActionState = {
+  ok: boolean;
+  error?: string;
+  fieldErrors?: Record<string, string>;
+};
+
+export const idleState: ActionState = { ok: false };
+
+export async function addItemAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { ok: false, fieldErrors: { title: "Title is required." } };
+  const categoryId = String(formData.get("categoryId") ?? "");
+  if (!categoryId) {
+    return { ok: false, fieldErrors: { categoryId: "Choose one of your categories." } };
+  }
+  const recurrenceRaw = String(formData.get("recurrence") ?? "none");
+  const recurrence = (RECURRENCES as readonly string[]).includes(recurrenceRaw)
+    ? (recurrenceRaw as Recurrence)
+    : "none";
+  const dueDate = String(formData.get("dueDate") ?? "");
+  if (!dueDate) return { ok: false, fieldErrors: { dueDate: "Due date is required." } };
+  const amountRaw = String(formData.get("amount") ?? "").trim();
+  const currencyRaw = String(formData.get("currency") ?? "BDT");
+  const currency = (CURRENCIES as readonly string[]).includes(currencyRaw)
+    ? (currencyRaw as Currency)
+    : "BDT";
+  try {
+    await createItem({
+      categoryId,
+      title,
+      notes: String(formData.get("notes") ?? "") || null,
+      dueDate,
+      recurrence,
+      autoRenews: formData.get("autoRenews") === "on" || formData.get("autoRenews") === "true",
+      amount: amountRaw || null,
+      currency,
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not add the item." };
+  }
+}
+
+export async function updateItemAction(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { ok: false, error: "Invalid item id." };
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { ok: false, fieldErrors: { title: "Title is required." } };
+  const dueDate = String(formData.get("dueDate") ?? "");
+  if (!dueDate) return { ok: false, fieldErrors: { dueDate: "Due date is required." } };
+  try {
+    await itemsCollection().update(id, {
+      categoryId: String(formData.get("categoryId") ?? ""),
+      title,
+      notes: String(formData.get("notes") ?? "") || null,
+      dueDate: `${dueDate}T00:00:00.000Z`,
+      recurrence: String(formData.get("recurrence") ?? "none"),
+      autoRenews:
+        formData.get("autoRenews") === "on" || formData.get("autoRenews") === "true",
+      amount: String(formData.get("amount") ?? "") || null,
+      currency: String(formData.get("currency") ?? "BDT"),
+    });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Could not update the item." };
+  }
+}
+

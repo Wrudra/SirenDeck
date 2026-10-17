@@ -20,7 +20,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "cn";
-import { deleteItem, markDone, snoozeItem } from "@/lib/actions/items";
+import {
+  deleteItem,
+  markDoneItem,
+  snoozeItem,
+} from "@/lib/blocks/data";
 import type { UrgencyLevel } from "@/lib/urgency";
 import { getUrgency } from "@/lib/urgency";
 import { formatCost } from "@/lib/money";
@@ -69,21 +73,30 @@ function chipClasses(urgency: UrgencyLevel, daysLeft: number): string {
 export function ItemList({
   items,
   categories,
+  onChanged,
 }: {
   items: ItemRow[];
   categories: CategoryRow[];
+  /** Called after a successful mark-done / snooze / delete so hosts can refetch. */
+  onChanged?: () => void;
 }) {
   const [pending, startTransition] = useTransition();
   const reduced = useReducedMotion();
 
   function run(
-    action: () => Promise<{ ok: boolean; error?: string; rolled?: boolean }>,
-    successMsg: string,
+    action: () => Promise<unknown>,
+    fallbackMsg: string,
   ) {
     startTransition(async () => {
-      const result = await action();
-      if (result.ok) toast.success(result.rolled ? "Next cycle started" : successMsg);
-      else if (result.error) toast.error(result.error);
+      try {
+        const msg = await action();
+        toast.success(
+          typeof msg === "string" && msg ? msg : fallbackMsg,
+        );
+        onChanged?.();
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Something went wrong.");
+      }
     });
   }
 
@@ -257,7 +270,14 @@ export function ItemList({
                         className="rounded-[var(--radius-control)] border-rule shadow-[0_8px_24px_rgb(20_19_17/0.12)]"
                       >
                         <DropdownMenuItem
-                          onSelect={() => run(() => markDone(item.id), "Marked done")}
+                          onSelect={() =>
+                            run(async () => {
+                              const updated = await markDoneItem(item);
+                              return updated.due_date !== item.due_date
+                                ? "Next cycle started"
+                                : "Marked done";
+                            }, "Marked done")
+                          }
                         >
                           <CircleCheckIcon /> Mark done
                         </DropdownMenuItem>
@@ -274,7 +294,7 @@ export function ItemList({
                                 size="xs"
                                 className="tabular h-6 w-auto shrink-0 px-1.5 text-xs"
                                 onClick={() =>
-                                  run(() => snoozeItem(item.id, d), `Snoozed ${d}d`)
+                                  run(() => snoozeItem(item, d), `Snoozed ${d}d`)
                                 }
                               >
                                 {d}d

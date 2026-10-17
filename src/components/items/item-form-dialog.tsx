@@ -22,8 +22,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { addItem, updateItem } from "@/lib/actions/items";
-import { idleState, type ActionState } from "@/lib/actions/types";
+import {
+  addItemAction,
+  idleState,
+  updateItemAction,
+  type ActionState,
+} from "@/lib/blocks/data";
 import type { CategoryRow } from "@/lib/validation/item";
 import { CURRENCIES, RECURRENCES } from "@/lib/validation/item";
 
@@ -47,6 +51,8 @@ export interface ItemFormDialogProps {
   /** controlled open · useful when opening from a map tile click */
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Called after a successful add/update so hosts can refetch. */
+  onSaved?: () => void;
 }
 
 export interface ItemFormValues {
@@ -67,6 +73,7 @@ export function ItemFormDialog({
   item,
   open: controlledOpen,
   onOpenChange,
+  onSaved,
 }: ItemFormDialogProps) {
   const isEdit = item != null;
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
@@ -94,10 +101,11 @@ export function ItemFormDialog({
   // same async flow · avoids a setState-in-effect cascade.
   const [state, formAction, pending] = useActionState(
     async (prev: ActionState, formData: FormData) => {
-      const result = await (isEdit ? updateItem : addItem)(prev, formData);
+      const result = await (isEdit ? updateItemAction : addItemAction)(prev, formData);
       if (result.ok) {
         setOpen(false);
         toast.success(isEdit ? "Item updated" : "Item added");
+        onSaved?.();
       } else if (result.error) {
         toast.error(result.error);
       }

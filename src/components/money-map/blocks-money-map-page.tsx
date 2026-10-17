@@ -22,7 +22,7 @@ import type { CategoryRow, ItemRow } from "@/lib/validation/item";
 /**
  * Client Money Map / ledger for Blocks data provider.
  * Seeds default categories on first empty load; Item create is minimal (title+category+due)
- * so the map can show seeded empty state and accept a first item without Supabase actions.
+ * so the map can show seeded empty state and accept a first item..
  */
 export function BlocksMoneyMapPage({
   searchParams,
@@ -169,16 +169,16 @@ export function BlocksMoneyMapPage({
       {items.length === 0 && hasActiveFilters(filters) ? (
         <ZeroResults query={filters.q} view={view} />
       ) : isList ? (
-        <ItemList items={items} categories={categories} />
+        <ItemList items={items} categories={categories} onChanged={() => void reload()} />
       ) : isMap ? (
-        <MoneyMap items={items} categories={categories} onDone={handleDone} />
+        <MoneyMap items={items} categories={categories} onDone={handleDone} onChanged={() => void reload()} />
       ) : (
         <>
           <div className="flex min-h-0 flex-1 flex-col md:hidden">
-            <ItemList items={items} categories={categories} />
+            <ItemList items={items} categories={categories} onChanged={() => void reload()} />
           </div>
           <div className="hidden min-h-0 flex-1 flex-col md:flex">
-            <MoneyMap items={items} categories={categories} onDone={handleDone} />
+            <MoneyMap items={items} categories={categories} onDone={handleDone} onChanged={() => void reload()} />
           </div>
         </>
       )}

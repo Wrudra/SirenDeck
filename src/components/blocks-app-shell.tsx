@@ -13,9 +13,8 @@ function claimEmail(claims: Record<string, unknown> | null): string {
 }
 
 /**
- * Client gate for Blocks-authenticated app routes.
- * Supabase requireUser() cannot see the Blocks session cookie, so when
- * NEXT_PUBLIC_AUTH_PROVIDER=blocks we render this shell instead of the server layout gate.
+ * Client gate for Blocks-authenticated app routes. Blocks sessions live in a
+ * browser cookie from hosted OIDC, so gating happens client-side.
  */
 export function BlocksAppShell({ children }: { children: React.ReactNode }) {
   const { status, claims } = useBlocksAuth();

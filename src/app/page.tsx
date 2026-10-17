@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 import { Logo } from "@/components/brand/logo";
 import { DepartureBoard } from "@/components/marketing/departure-board";
-import { createClient } from "@/lib/supabase/server";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "SirenDeck: see everything that renews, before it costs you",
@@ -14,18 +10,7 @@ export const metadata: Metadata = {
     "One map of every subscription, bill, insurance, domain, and document renewal. Closer deadlines grow larger. Color shows how urgent.",
 };
 
-export default async function Home() {
-  // Blocks-only deploys omit Supabase env; skip legacy session redirect quietly.
-  try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (user) redirect("/app");
-  } catch {
-    // Missing Supabase env — show marketing page.
-  }
-
+export default function Home() {
   return (
     <div className="min-h-svh bg-bg text-ink">
       <header className="chrome sticky top-0 z-50 border-b border-white/50 pt-[env(safe-area-inset-top)]">
