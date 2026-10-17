@@ -14,6 +14,7 @@ import {
   createItem,
   getOrSeedCategories,
   listItems,
+  markDoneItem,
 } from "@/lib/blocks/data";
 import { applyFilters, hasActiveFilters, parseFilters } from "@/lib/filters";
 import type { CategoryRow, ItemRow } from "@/lib/validation/item";
@@ -39,6 +40,11 @@ export function BlocksMoneyMapPage({
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
 
+  const itemById = useMemo(
+    () => new Map(allItems.map((row) => [row.id, row])),
+    [allItems],
+  );
+
   const reload = useCallback(async () => {
     // No synchronous setState here: the initial load starts with `loading`
     // already true, and every state write happens after the first await.
@@ -53,6 +59,16 @@ export function BlocksMoneyMapPage({
       setLoading(false);
     }
   }, []);
+
+  const handleDone = useCallback(
+    async (item: { id: string }) => {
+      const row = itemById.get(item.id);
+      if (!row) throw new Error("Item not found");
+      await markDoneItem(row);
+      await reload();
+    },
+    [itemById, reload],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -155,14 +171,14 @@ export function BlocksMoneyMapPage({
       ) : isList ? (
         <ItemList items={items} categories={categories} />
       ) : isMap ? (
-        <MoneyMap items={items} categories={categories} />
+        <MoneyMap items={items} categories={categories} onDone={handleDone} />
       ) : (
         <>
           <div className="flex min-h-0 flex-1 flex-col md:hidden">
             <ItemList items={items} categories={categories} />
           </div>
           <div className="hidden min-h-0 flex-1 flex-col md:flex">
-            <MoneyMap items={items} categories={categories} />
+            <MoneyMap items={items} categories={categories} onDone={handleDone} />
           </div>
         </>
       )}

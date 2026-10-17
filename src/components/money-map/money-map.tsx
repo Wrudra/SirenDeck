@@ -49,7 +49,16 @@ function iconFor(category: CategoryRow | undefined): LucideIcon | null {
   return CATEGORY_ICONS[category.icon] ?? null;
 }
 
-export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: CategoryRow[] }) {
+export function MoneyMap({
+  items,
+  categories,
+  onDone: settleOverride,
+}: {
+  items: ItemRow[];
+  categories: CategoryRow[];
+  /** Custom settle handler (Blocks data). Falls back to the Supabase server action. */
+  onDone?: (item: MapItem) => Promise<void>;
+}) {
   const [container, setContainer] = useState<{ w: number; h: number } | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
@@ -240,20 +249,30 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
     }
     return null;
   })();
-  const onDone = useCallback(() => {
-    if (!activeItem) return;
-    const id = activeItem.id;
-    startDone(async () => {
-      const result = await markDone(id);
-      if (result.ok) {
-        toast.success(result.rolled ? "Next cycle started" : "Marked done");
-        setSelectedId(null);
-        setHoveredId(null);
-      } else if (result.error) {
-        toast.error(result.error);
-      }
-    });
-  }, [activeItem]);
+  const onDone = useCallback(
+    (item: MapItem) => {
+      const id = item.id;
+      startDone(async () => {
+        try {
+          if (settleOverride) {
+            await settleOverride(item);
+          } else {
+            const result = await markDone(id);
+            if (result.ok) {
+              toast.success(result.rolled ? "Next cycle started" : "Marked done");
+              setSelectedId(null);
+              setHoveredId(null);
+            } else if (result.error) {
+              toast.error(result.error);
+            }
+          }
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : "Could not mark done.");
+        }
+      });
+    },
+    [settleOverride],
+  );
 
   const empty = items.length === 0;
 
@@ -413,7 +432,13 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
             anchor={activeAnchor}
             bounds={container}
             pinned={solo}
-            onDone={activeItem ? onDone : undefined}
+            onDone={
+              activeItem
+                ? () => {
+                    void onDone(activeItem);
+                  }
+                : undefined
+            }
             onEdit={activeItem ? () => openEdit(activeItem.id) : undefined}
             donePending={donePending}
             onHold={setHover}

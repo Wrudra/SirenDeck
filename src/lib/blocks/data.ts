@@ -11,6 +11,7 @@
  */
 
 import { getBlocksClient } from "./client";
+import { completeCycle } from "@/lib/map/cycle";
 import type { CategoryRow, Currency, ItemRow, Recurrence, Status } from "@/lib/validation/item";
 
 type BlocksRecord = Record<string, unknown>;
@@ -222,6 +223,31 @@ export async function createItem(input: {
     completedAt: null,
   });
   return mutationItemId(res, "insertItem");
+}
+
+/**
+ * Manual "done" on a Blocks item, mirroring the Supabase markDone action:
+ * renewing items roll to the next cycle via completeCycle; one-offs are
+ * marked done. Returns the mapped row so callers can update local state.
+ */
+export async function markDoneItem(item: ItemRow): Promise<ItemRow> {
+  if (item.auto_renews && item.recurrence !== "none") {
+    const dueDate = completeCycle(item.due_date, item.recurrence, new Date());
+    if (!dueDate) throw new Error("Could not mark done.");
+    await itemsCollection().update(item.id, {
+      dueDate: `${dueDate}T00:00:00.000Z`,
+      status: "active",
+      snoozedUntil: null,
+    });
+    return { ...item, due_date: dueDate, status: "active", snoozed_until: null };
+  }
+  const completedAt = new Date().toISOString();
+  await itemsCollection().update(item.id, {
+    status: "done",
+    snoozedUntil: null,
+    completedAt,
+  });
+  return { ...item, status: "done", snoozed_until: null, completed_at: completedAt };
 }
 
 /** Data backend preference during dual-run. Set NEXT_PUBLIC_DATA_PROVIDER=blocks on Blocks deploys. */
