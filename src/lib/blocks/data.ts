@@ -355,17 +355,18 @@ export async function updateItemAction(
   const dueDate = String(formData.get("dueDate") ?? "");
   if (!dueDate) return { ok: false, fieldErrors: { dueDate: "Due date is required." } };
   try {
-    await itemsCollection().update(id, {
+    const res = await itemsCollection().update(id, {
       categoryId: String(formData.get("categoryId") ?? ""),
       title,
-      notes: String(formData.get("notes") ?? "") || null,
+      notes: String(formData.get("notes") ?? ""),
       dueDate: `${dueDate}T00:00:00.000Z`,
       recurrence: String(formData.get("recurrence") ?? "none"),
       autoRenews:
         formData.get("autoRenews") === "on" || formData.get("autoRenews") === "true",
-      amount: String(formData.get("amount") ?? "") || null,
+      amount: String(formData.get("amount") ?? ""),
       currency: String(formData.get("currency") ?? "BDT"),
     });
+    assertMutationOk(res, "Update");
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Could not update the item." };
