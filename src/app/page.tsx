@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { BuiltOnBlocks } from "@/components/brand/built-on-blocks";
 import { Logo } from "@/components/brand/logo";
 import { DepartureBoard } from "@/components/marketing/departure-board";
 import { LandingAuth } from "@/components/landing-auth";
@@ -45,6 +46,11 @@ export default function Home() {
           <Reveal delay={0.12}>
             <div className="mt-14">
               <DepartureBoard />
+            </div>
+          </Reveal>
+          <Reveal delay={0.18}>
+            <div className="mt-16">
+              <BuiltOnBlocks />
             </div>
           </Reveal>
         </section>
