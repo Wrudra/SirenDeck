@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { ItemList } from "@/components/items/item-list";
 import { MoneyMap } from "@/components/money-map/money-map";
 import { FilterBar } from "@/components/shell/filter-bar";
-import { ViewTabs } from "@/components/shell/view-tabs";
+import { ViewProvider, ViewStage, ViewTabs } from "@/components/shell/view-tabs";
 import { Button } from "@/components/ui/button";
 import {
   createItem,
@@ -31,8 +31,14 @@ export function BlocksMoneyMapPage({
 }) {
   const filters = useMemo(() => parseFilters(searchParams), [searchParams]);
   const view = typeof searchParams.view === "string" ? searchParams.view : null;
-  const isList = view === "list";
-  const isMap = view === "map";
+  const query = useMemo(() => {
+    const qs = new URLSearchParams();
+    for (const [key, value] of Object.entries(searchParams)) {
+      if (value == null) continue;
+      for (const v of Array.isArray(value) ? value : [value]) qs.append(key, v);
+    }
+    return qs.toString();
+  }, [searchParams]);
 
   const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [allItems, setAllItems] = useState<ItemRow[]>([]);
@@ -144,45 +150,46 @@ export function BlocksMoneyMapPage({
   }
 
   return (
-    <div className="flex flex-1 flex-col">
-      <FilterBar
-        filters={filters}
-        categories={categories}
-        shownCount={items.length}
-        totalCount={allItems.length}
-      />
-      <div className="flex items-center justify-between gap-3 border-b border-rule bg-surface px-4 py-2">
-        <ViewTabs />
-        <Button
-          size="sm"
-          data-icon="inline-start"
-          id="add-item"
-          disabled={adding || categories.length === 0}
-          onClick={() => void onQuickAdd()}
-          className="plate rounded-[var(--radius-control)] border-transparent hover:bg-ink"
-        >
-          <PlusIcon />
-          {adding ? "Adding…" : "Add sample item"}
-        </Button>
-      </div>
+    <ViewProvider serverView={view} query={query}>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <FilterBar
+          filters={filters}
+          categories={categories}
+          shownCount={items.length}
+          totalCount={allItems.length}
+        />
+        <div className="flex items-center justify-between gap-3 border-b border-rule bg-surface px-4 py-2">
+          <ViewTabs />
+          <Button
+            size="sm"
+            data-icon="inline-start"
+            id="add-item"
+            disabled={adding || categories.length === 0}
+            onClick={() => void onQuickAdd()}
+            className="plate rounded-[var(--radius-control)] border-transparent hover:bg-ink"
+          >
+            <PlusIcon />
+            {adding ? "Adding…" : "Add sample item"}
+          </Button>
+        </div>
 
-      {items.length === 0 && hasActiveFilters(filters) ? (
-        <ZeroResults query={filters.q} view={view} />
-      ) : isList ? (
-        <ItemList items={items} categories={categories} onChanged={() => void reload()} />
-      ) : isMap ? (
-        <MoneyMap items={items} categories={categories} onDone={handleDone} onChanged={() => void reload()} />
-      ) : (
-        <>
-          <div className="flex min-h-0 flex-1 flex-col md:hidden">
-            <ItemList items={items} categories={categories} onChanged={() => void reload()} />
-          </div>
-          <div className="hidden min-h-0 flex-1 flex-col md:flex">
-            <MoneyMap items={items} categories={categories} onDone={handleDone} onChanged={() => void reload()} />
-          </div>
-        </>
-      )}
-    </div>
+        {items.length === 0 && hasActiveFilters(filters) ? (
+          <ZeroResults query={filters.q} view={view} />
+        ) : (
+          <ViewStage
+            list={<ItemList items={items} categories={categories} onChanged={() => void reload()} />}
+            map={
+              <MoneyMap
+                items={items}
+                categories={categories}
+                onDone={handleDone}
+                onChanged={() => void reload()}
+              />
+            }
+          />
+        )}
+      </div>
+    </ViewProvider>
   );
 }
 
