@@ -1,4 +1,5 @@
-import { yearlyCost, type Recurrence } from "@/lib/money";
+import { deadlineWeight } from "@/lib/map/deadline-weight";
+import type { Recurrence } from "@/lib/money";
 import { getUrgency, type UrgencyLevel } from "@/lib/urgency";
 import type { Currency, ItemRow } from "@/lib/validation/item";
 
@@ -8,13 +9,15 @@ export interface MapItem {
   id: string;
   title: string;
   categoryId: string;
-  /** null = unpriced (goes to the shelf) */
+  /** Entered amount. Null when unpriced. Recurrence does not scale it. */
   yearCost: number | null;
   amount: number | null;
   currency: Currency;
   recurrence: Recurrence;
   dueDate: string;
   daysLeft: number;
+  /** Treemap area. Sooner (and more overdue) is larger. Independent of cost. */
+  layoutWeight: number;
   urgency: UrgencyLevel;
   autoRenews: boolean;
 }
@@ -41,18 +44,18 @@ export interface CurrencyTotal {
 }
 
 export interface MapModel {
-  /** priced items, largest-first · tile render order (stagger largest first) */
+  /** Board items, soonest first. Area follows layoutWeight, not cost. */
   tiles: MapItem[];
-  /** merged long-tail tile, present when priced items exceed the cap */
+  /** Items past the tile cap: the furthest deadlines, not the cheapest. */
   other: OtherTile | null;
-  /** unpriced items for the shelf, most urgent first */
+  /** Kept for the shelf component. Deadlines now all have area, so this stays empty. */
   shelf: MapItem[];
   /** totals per currency code */
   totals: { currency: Currency; line: SummaryLine }[];
   /**
-   * categoryId → yearly cost of every priced item in that category, one
+   * categoryId → entered amount of every priced item in that category, one
    * entry per currency (largest first). Includes items merged past the tile
-   * cap, so a section title shows the category's true yearly total.
+   * cap, so a section title shows the sum of what was typed.
    */
   categoryTotals: Map<string, CurrencyTotal[]>;
   itemCount: number;
@@ -60,7 +63,7 @@ export interface MapModel {
 
 function toMapItem(item: ItemRow, now: Date): MapItem {
   const amount = item.amount == null ? null : Number(item.amount);
-  const yearCost = yearlyCost({ amount, recurrence: item.recurrence });
+  const yearCost = amount;
   const { daysLeft, level } = getUrgency(item.due_date, now);
 
   return {
@@ -73,23 +76,22 @@ function toMapItem(item: ItemRow, now: Date): MapItem {
     recurrence: item.recurrence,
     dueDate: item.due_date,
     daysLeft,
+    layoutWeight: deadlineWeight(daysLeft),
     urgency: level,
     autoRenews: item.auto_renews,
   };
 }
 
-const URGENCY_ORDER: Record<UrgencyLevel, number> = {
-  overdue: 0,
-  critical: 1,
-  urgent: 2,
-  soon: 3,
-  calm: 4,
-};
-
-/** Shelf order: most urgent unpriced item first. */
-function byShelfOrder(a: MapItem, b: MapItem): number {
-  const u = URGENCY_ORDER[a.urgency] - URGENCY_ORDER[b.urgency];
-  return u !== 0 ? u : a.daysLeft - b.daysLeft;
+/**
+ * Soonest deadline first. Same day: higher entered amount, then id.
+ * The tile cap keeps this prefix, so a cheap item due tomorrow is never
+ * dropped to keep an expensive one due next year.
+ */
+function byDeadline(a: MapItem, b: MapItem): number {
+  if (a.daysLeft !== b.daysLeft) return a.daysLeft - b.daysLeft;
+  const cost = (b.yearCost ?? 0) - (a.yearCost ?? 0);
+  if (cost !== 0) return cost;
+  return a.id.localeCompare(b.id);
 }
 
 /**
@@ -103,17 +105,13 @@ export function buildMapModel(
 ): MapModel {
   const mapItems = items.map((item) => toMapItem(item, now));
 
-  const priced = mapItems
-    .filter((i) => i.yearCost != null && i.yearCost > 0)
-    .sort((a, b) => (b.yearCost ?? 0) - (a.yearCost ?? 0));
+  // Every item has a deadline, so every item can take area. Cost stays on
+  // the label. Unpriced rows used to sit on a shelf because cost was the weight.
+  const ranked = [...mapItems].sort(byDeadline);
+  const shelf: MapItem[] = [];
 
-  // Unpriced or zero-cost: no meaningful tile area, so they live on the shelf.
-  const shelf = mapItems
-    .filter((i) => i.yearCost == null || i.yearCost <= 0)
-    .sort(byShelfOrder);
-
-  const tiles = priced.slice(0, tileCap);
-  const rest = priced.slice(tileCap);
+  const tiles = ranked.slice(0, tileCap);
+  const rest = ranked.slice(tileCap);
 
   let other: OtherTile | null = null;
   if (rest.length > 0) {
@@ -146,7 +144,7 @@ export function buildMapModel(
 
   // Per-category yearly totals (section titles).
   const byCategory = new Map<string, Map<Currency, number>>();
-  for (const item of priced) {
+  for (const item of mapItems) {
     const sums = byCategory.get(item.categoryId) ?? new Map<Currency, number>();
     sums.set(item.currency, (sums.get(item.currency) ?? 0) + (item.yearCost ?? 0));
     byCategory.set(item.categoryId, sums);
@@ -164,7 +162,7 @@ function sortTotals(sums: Map<Currency, number>): CurrencyTotal[] {
 }
 
 /**
- * Yearly total across several categories (the synthetic Other section),
+ * Entered-amount total across several categories (the synthetic Other section),
  * still split per currency · amounts in different currencies never mix.
  */
 export function sumCategoryTotals(

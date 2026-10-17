@@ -56,3 +56,10 @@ release-debug*.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+<<<<<<< HEAD
+=======
+.impeccable/
+
+# security-audit skill output (reports only; never application source)
+/security-audit/
+>>>>>>> main

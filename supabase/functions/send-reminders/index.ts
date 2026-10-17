@@ -59,14 +59,9 @@ Deno.serve(async (req: Request) => {
     let sent = 0;
     const sentIds: string[] = [];
     for (const r of due) {
-      const subject =
-        r.days_before === 0
-          ? `Due today: ${r.item_title}`
-          : `Due in ${r.days_before} day${r.days_before === 1 ? "" : "s"}: ${r.item_title}`;
-
       if (REMINDER_MODE === "log") {
         console.log(
-          `[reminder:log] to=${r.user_email} subject="${subject}" due=${r.due_date} amount=${r.amount ?? "—"} ${r.currency}`,
+          `[reminder:log] reminder=${r.reminder_id} due=${r.due_date} days_before=${r.days_before}`,
         );
       } else {
         // Real dispatch is intentionally unimplemented until the owner

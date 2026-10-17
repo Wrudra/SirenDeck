@@ -5,6 +5,8 @@ import {
   layoutFlat,
   layoutGrouped,
   layoutGroupedReadable,
+  layoutOrdered,
+  layoutOrderedFlat,
 } from "../map/treemap";
 
 describe("layoutFlat", () => {
@@ -144,13 +146,13 @@ describe("layoutGroupedReadable", () => {
     expect(Math.min(...rects.map((r) => r.width))).toBeLessThan(96);
   });
 
-  it("folds tiny categories into Other so every section is >= min width", () => {
+  it("folds tiny categories into Other without enlarging them past the big ones", () => {
     const { rects, otherMembers } = layoutGroupedReadable(board, 1440, 670, opts);
-    for (const r of rects) expect(r.width).toBeGreaterThanOrEqual(95.5);
     expect(otherMembers.sort()).toEqual(["domains", "licenses"]);
     const other = rects.find((r) => r.id === OTHER_GROUP_ID)!;
     expect(other.children.map((c) => c.id).sort()).toEqual(["driver", "namecheap"]);
-    // big categories keep their own sections
+    const insurance = rects.find((r) => r.id === "insurance")!;
+    expect(insurance.width * insurance.height).toBeGreaterThan(other.width * other.height);
     expect(rects.map((r) => r.id)).toEqual(expect.arrayContaining(["insurance", "bills"]));
   });
 
@@ -158,10 +160,9 @@ describe("layoutGroupedReadable", () => {
     const { rects } = layoutGroupedReadable(board, 1024, 470, opts);
     const ids = rects.flatMap((r) => r.children.map((c) => c.id)).sort();
     expect(ids).toEqual(board.flatMap((g) => g.children.map((c) => c.id)).sort());
-    for (const r of rects) expect(r.width).toBeGreaterThanOrEqual(95.5);
   });
 
-  it("a lone small category keeps its own id (enlarged, not renamed)", () => {
+  it("a lone small category keeps its own id and stays smaller", () => {
     const { rects, otherMembers } = layoutGroupedReadable(
       [
         { id: "big", children: [{ id: "a", value: 1000 }] },
@@ -173,18 +174,18 @@ describe("layoutGroupedReadable", () => {
     );
     expect(otherMembers).toEqual([]);
     const tiny = rects.find((r) => r.id === "tiny")!;
-    expect(tiny.width).toBeGreaterThanOrEqual(95.5);
+    const big = rects.find((r) => r.id === "big")!;
+    expect(big.width * big.height).toBeGreaterThan(tiny.width * tiny.height * 5);
   });
 
-
-  it("Other half-size floor keeps crushed leaves above ~40px", () => {
-    // At 1024 the travel section also folds into Other; without a strong
-    // enough floor, Namecheap collapsed to ~35px and clipped labels.
+  it("folded leaves keep their relative size", () => {
     const { rects, otherMembers } = layoutGroupedReadable(board, 1024, 470, opts);
-    expect(otherMembers.sort()).toEqual(["domains", "licenses", "travel"]);
-    const other = rects.find((r) => r.id === OTHER_GROUP_ID)!;
-    const minH = Math.min(...other.children.map((c) => c.height));
-    expect(minH).toBeGreaterThanOrEqual(40);
+    expect(otherMembers.sort()).toEqual(["domains", "licenses"]);
+    const byId = new Map(
+      rects.flatMap((r) => r.children.map((c) => [c.id, c.width * c.height] as const)),
+    );
+    expect(byId.get("passport")!).toBeGreaterThan(byId.get("namecheap")!);
+    expect(byId.get("namecheap")!).toBeGreaterThan(byId.get("driver")!);
   });
 
   it("leaves a balanced board untouched", () => {
@@ -195,5 +196,77 @@ describe("layoutGroupedReadable", () => {
     expect(layoutGroupedReadable(groups, 800, 400, opts).rects).toEqual(
       layoutGrouped(groups, 800, 400, opts),
     );
+  });
+});
+
+describe("layoutOrdered", () => {
+  it("places categories left to right and items top to bottom", () => {
+    const rects = layoutOrdered(
+      [
+        {
+          id: "later",
+          order: 1,
+          children: [
+            { id: "far", value: 1, order: 1 },
+            { id: "near", value: 2, order: 0 },
+          ],
+        },
+        {
+          id: "sooner",
+          order: 0,
+          children: [{ id: "now", value: 3, order: 0 }],
+        },
+      ],
+      900,
+      600,
+      { paddingInner: 4, headerHeight: 22 },
+    );
+    const sooner = rects.find((g) => g.id === "sooner")!;
+    const later = rects.find((g) => g.id === "later")!;
+    expect(sooner.x).toBeLessThan(later.x);
+    expect(sooner.width).toBeGreaterThan(later.width);
+    const near = later.children.find((c) => c.id === "near")!;
+    const far = later.children.find((c) => c.id === "far")!;
+    expect(near.y).toBeLessThan(far.y);
+    expect(near.height).toBeGreaterThan(far.height);
+    expect(near.width).toBeCloseTo(far.width, 0);
+  });
+
+  it("keeps a far sibling at least a third as tall as the soonest", () => {
+    const [group] = layoutOrdered(
+      [
+        {
+          id: "bills",
+          order: 0,
+          children: [
+            { id: "old", value: 3, order: 0 },
+            { id: "far", value: 1, order: 1 },
+          ],
+        },
+      ],
+      400,
+      600,
+      { headerHeight: 22 },
+    );
+    const old = group.children.find((c) => c.id === "old")!;
+    const far = group.children.find((c) => c.id === "far")!;
+    expect(old.height / far.height).toBeLessThan(3.2);
+    expect(far.height).toBeGreaterThan(80);
+  });
+
+  it("stacks a zoomed category with the soonest on top", () => {
+    const rects = layoutOrderedFlat(
+      [
+        { id: "second", value: 2, order: 1 },
+        { id: "first", value: 3, order: 0 },
+      ],
+      500,
+      400,
+      2,
+    );
+    const first = rects.find((r) => r.id === "first")!;
+    const second = rects.find((r) => r.id === "second")!;
+    expect(first.y).toBeLessThan(second.y);
+    expect(first.height).toBeGreaterThan(second.height);
   });
 });

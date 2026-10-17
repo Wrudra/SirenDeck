@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { AnimatePresence, MotionConfig } from "motion/react";
 import {
   BadgeCheckIcon,
@@ -13,22 +14,26 @@ import {
 } from "lucide-react";
 
 import { ItemFormDialog } from "@/components/items/item-form-dialog";
+import { markDone } from "@/lib/actions/items";
 import { buildMapModel, sumCategoryTotals, type MapItem } from "@/lib/map/map-model";
 import { fitSectionTotal, formatSectionTotal } from "@/lib/map/section-total";
 import {
   OTHER_GROUP_ID,
   layoutFlat,
-  layoutGroupedReadable,
+  layoutGrouped,
   type GroupDatum,
   type GroupRect,
 } from "@/lib/map/treemap";
 import { formatCost } from "@/lib/money";
 import { getUrgency } from "@/lib/urgency";
 import type { CategoryRow, ItemRow } from "@/lib/validation/item";
-import { MapTooltip } from "./map-tooltip";
-import { SummaryStrip } from "./summary-strip";
+import { MapTooltip, type TileBox } from "./map-tooltip";
 import { Tile, daysLabel } from "./tile";
 import { UnpricedShelf } from "./unpriced-shelf";
+
+/** Inset so the cards do not sit on the window edge. */
+const MAP_SIDE = 28;
+const MAP_BOTTOM = 28;
 
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
   repeat: RepeatIcon,
@@ -51,8 +56,23 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [requestedZoomId, setZoomId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [layoutMotion, setLayoutMotion] = useState(true);
+  const [donePending, startDone] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
+  const hoverTimer = useRef<number | null>(null);
 
+  const setHover = useCallback((id: string | null) => {
+    if (hoverTimer.current != null) {
+      window.clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+    if (id) setHoveredId(id);
+    else hoverTimer.current = window.setTimeout(() => setHoveredId(null), 90);
+  }, []);
+
+  // The canvas is not in the tree while the map is empty, so this has to
+  // run again when the first item arrives. A mount-only effect never sees it.
+  const hasItems = items.length > 0;
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -62,14 +82,15 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [hasItems]);
 
   useEffect(() => {
     if (!selectedId) return;
     function onDown(e: PointerEvent) {
       const target = e.target;
       if (!(target instanceof Element)) return;
-      if (target.closest(`[data-tile-id="${selectedId}"]`)) return;
+      if (target.closest("[data-tile-id]")) return;
+      if (target.closest("[data-map-detail]")) return;
       setSelectedId(null);
     }
     document.addEventListener("pointerdown", onDown);
@@ -79,8 +100,12 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
+      setLayoutMotion(false);
       if (requestedZoomId) setZoomId(null);
       else setSelectedId(null);
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => setLayoutMotion(true));
+      });
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -89,14 +114,6 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
   const model = useMemo(() => buildMapModel(items), [items]);
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
-  /** The soonest due item on the board · the porcelain hairline subject. */
-  const soonestId = useMemo(() => {
-    const ranked = [...items].sort(
-      (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime(),
-    );
-    return ranked[0]?.id ?? null;
-  }, [items]);
-
   const entries = useMemo<GroupDatum[]>(() => {
     const groups = new Map<string, MapItem[]>();
     for (const item of model.tiles) {
@@ -104,23 +121,44 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
       list.push(item);
       groups.set(item.categoryId, list);
     }
-    return [...groups.entries()].map(([id, list]) => ({
-      id,
-      children: list.map((i) => ({ id: i.id, value: i.yearCost ?? 0 })),
+    const built = [...groups.entries()].map(([id, list]) => {
+      const sorted = [...list].sort(
+        (a, b) => a.daysLeft - b.daysLeft || a.id.localeCompare(b.id),
+      );
+      return {
+        id,
+        soonest: sorted[0]?.daysLeft ?? 0,
+        children: sorted.map((item, index) => ({
+          id: item.id,
+          value: item.layoutWeight,
+          order: index,
+        })),
+      };
+    });
+    built.sort((a, b) => a.soonest - b.soonest || a.id.localeCompare(b.id));
+    return built.map((group, index) => ({
+      id: group.id,
+      order: index,
+      children: group.children,
     }));
   }, [model]);
 
   /**
-   * Overview layout. Categories too small for a readable section (below
-   * ~96px wide) are folded into one "Other" section instead of thin slivers.
+   * Overview layout. A stock-heatmap treemap: categories are the sectors,
+   * each tile's area is how soon it is due, and squarify keeps the blocks
+   * as square as the weights allow. The heaviest sector lands first.
    */
   const overview = useMemo(() => {
-    if (!container || container.w <= 0 || container.h <= 0) return null;
-    return layoutGroupedReadable(entries, container.w, container.h, {
-      paddingInner: 3,
-      headerHeight: 22,
-      minGroupWidth: 96,
-    });
+    if (!container || container.w <= MAP_SIDE * 2 || container.h <= MAP_BOTTOM) return null;
+    const width = container.w - MAP_SIDE * 2;
+    const height = container.h - MAP_BOTTOM;
+    return {
+      rects: layoutGrouped(entries, width, height, {
+        paddingInner: 8,
+        headerHeight: 28,
+      }).map((group) => ({ ...group, x: group.x + MAP_SIDE })),
+      otherMembers: [] as string[],
+    };
   }, [container, entries]);
 
   const otherMembers = useMemo(() => overview?.otherMembers ?? [], [overview]);
@@ -155,14 +193,16 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
         ? entries.filter((g) => otherMembers.includes(g.id)).flatMap((g) => g.children)
         : (entries.find((g) => g.id === zoomId)?.children ?? []);
     if (children.length === 0) return [];
+    const width = Math.max(container.w - MAP_SIDE * 2, 0);
+    const height = Math.max(container.h - MAP_BOTTOM, 0);
     return [
       {
         id: zoomId,
-        x: 0,
+        x: MAP_SIDE,
         y: 0,
-        width: container.w,
-        height: container.h,
-        children: layoutFlat(children, container.w, container.h, 2),
+        width,
+        height,
+        children: layoutFlat(children, width, height, 8),
       },
     ];
   }, [container, overview, entries, otherMembers, zoomId]);
@@ -179,8 +219,40 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
   const closeEdit = useCallback(() => setEditingId(null), []);
   const onTileSelect = useCallback((id: string) => setSelectedId(id), []);
 
-  const activeId = hoveredId ?? selectedId ?? focusedId;
+  // One item has no neighbor to sit beside, so the card stays at the top.
+  // Otherwise a click pins the card, and hover only previews while nothing is pinned.
+  const solo = model.tiles.length === 1 && model.other == null;
+  const activeId = solo ? model.tiles[0].id : (selectedId ?? hoveredId ?? focusedId);
   const activeItem = activeId ? (itemById.get(activeId) ?? null) : null;
+  const activeAnchor = useMemo<TileBox | null>(() => {
+    if (!activeId || !groupRects) return null;
+    for (const group of groupRects) {
+      for (const child of group.children) {
+        if (child.id !== activeId) continue;
+        return {
+          x: child.x + group.x,
+          y: child.y + group.y,
+          w: child.width,
+          h: child.height,
+        };
+      }
+    }
+    return null;
+  }, [activeId, groupRects]);
+  const onDone = useCallback(() => {
+    if (!activeItem) return;
+    const id = activeItem.id;
+    startDone(async () => {
+      const result = await markDone(id);
+      if (result.ok) {
+        toast.success(result.rolled ? "Next cycle started" : "Marked done");
+        setSelectedId(null);
+        setHoveredId(null);
+      } else if (result.error) {
+        toast.error(result.error);
+      }
+    });
+  }, [activeItem]);
 
   const empty = items.length === 0;
 
@@ -190,21 +262,19 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
         {empty ? (
           <div className="flex min-h-0 flex-1 items-center justify-center p-6">
             <div className="flex max-w-md flex-col items-center gap-3 text-center">
-              <div aria-hidden className="grid aspect-[16/7] w-full grid-cols-4 grid-rows-2 gap-px overflow-hidden border border-heat-rule bg-heat-bg p-1">
-                <div className="col-span-2 row-span-2 bg-heat-overdue" />
-                <div className="bg-heat-urgent" />
-                <div className="bg-heat-calm" />
-                <div className="bg-heat-soon" />
-                <div className="bg-heat-critical" />
-                <div className="bg-heat-calm" />
-                <div className="bg-heat-soon" />
-                <div className="bg-heat-urgent" />
+              <div aria-hidden className="grid aspect-[16/7] w-full grid-cols-4 grid-rows-2 gap-2">
+                <div className="col-span-2 row-span-2 rounded-2xl bg-heat-overdue" />
+                <div className="rounded-2xl bg-heat-urgent" />
+                <div className="rounded-2xl bg-heat-calm" />
+                <div className="rounded-2xl bg-heat-critical" />
+                <div className="rounded-2xl bg-heat-calm" />
+                <div className="rounded-2xl bg-heat-soon" />
+                <div className="rounded-2xl bg-heat-urgent" />
               </div>
-              <p className="ledger-cap mt-3 text-[11px] text-ink-muted">The ledger is blank</p>
-              <h2 className="font-display text-2xl font-semibold text-ink">Your map starts with one entry</h2>
+              <h2 className="mt-3 text-2xl font-semibold tracking-[-0.02em] text-ink">Your map starts with one deadline</h2>
               <p className="text-sm leading-relaxed text-ink-muted" style={{ textWrap: "pretty" }}>
-                Add a subscription, bill or document renewal. Tile size is what it costs you a year.
-                Color is how soon it comes due: green is calm, red is past due.
+                Add a subscription, bill or document renewal. The closer the deadline, the larger the tile.
+                Color runs the same way: green is calm, red is past due.
               </p>
               <ItemFormDialog
                 categories={categories}
@@ -232,11 +302,11 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
             </button>
             <span className="text-ink-muted">·</span>
             {zoomId === OTHER_GROUP_ID ? (
-              <span className="truncate">
+              <span className="min-w-0 truncate">
                 Other <span className="text-ink-muted">({otherLabel})</span>
               </span>
             ) : (
-              <span className="truncate">{categoryById.get(zoomId)?.name ?? "Category"}</span>
+              <span className="min-w-0 truncate">{categoryById.get(zoomId)?.name ?? "Category"}</span>
             )}
             {(sectionTotals.get(zoomId)?.length ?? 0) > 0 && (
               <span
@@ -250,8 +320,8 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
         )}
         <div
           ref={ref}
-          className="relative min-h-0 flex-1 overflow-hidden bg-heat-bg"
-          aria-label="Money Map: treemap of items sized by yearly cost, colored by urgency. Full list follows."
+          className="relative min-h-0 flex-1 overflow-hidden bg-bg"
+          aria-label="Money Map: treemap of items sized by how soon they are due, colored by urgency. Full list follows."
         >
           {groupRects && (
             <>
@@ -273,7 +343,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                         setHoveredId(null);
                         setZoomId(group.id);
                       }}
-                      className="ledger-cap group absolute z-10 flex h-[22px] cursor-zoom-in items-center justify-between gap-2 bg-black px-2 text-left text-white transition-colors hover:bg-[#1a1a1a] hover:text-white focus-visible:bg-[#1a1a1a] focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/70"
+                      className="group absolute z-10 flex h-7 cursor-pointer items-end justify-between gap-2 bg-transparent px-0.5 pb-1 text-left text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
                       style={{ left: group.x, top: group.y, width: group.width }}
                       title={
                         isOther
@@ -288,21 +358,14 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                           : `Zoom into ${name}${yearly}`
                       }
                     >
-                      <span className="min-w-0 truncate text-sm font-medium normal-case tracking-normal decoration-white/55 underline-offset-[3px] group-hover:underline group-focus-visible:underline">
+                      <span className="min-w-0 truncate text-[13px] font-medium tracking-[-0.01em]">
                         {name}
-                        <span
-                          aria-hidden
-                          className="ml-1 text-white/60 transition-colors group-hover:text-white group-focus-visible:text-white"
-                        >
+                        <span aria-hidden className="ml-0.5 text-ink-muted">
                           ›
                         </span>
                       </span>
                       {shownTotal && (
-                        <span
-                          aria-hidden
-                          className="tabular shrink-0 whitespace-nowrap text-[11px] font-normal normal-case tracking-normal text-white/70"
-                          style={{ fontFamily: "var(--font-mono-var)" }}
-                        >
+                        <span aria-hidden className="tabular shrink-0 whitespace-nowrap text-[12px] text-ink-muted">
                           {shownTotal}
                         </span>
                       )}
@@ -311,7 +374,7 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                 })}
               <AnimatePresence>
                 {groupRects.flatMap((group) =>
-                  group.children.map((child, i) => {
+                  group.children.map((child) => {
                     const item = itemById.get(child.id);
                     if (!item) return null;
                     return (
@@ -323,15 +386,16 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
                         width={child.width}
                         height={child.height}
                         title={item.title}
+                        dueDate={item.dueDate}
+                        categoryId={item.categoryId}
                         cost={formatCost(item.yearCost, item.currency)}
                         daysLeft={item.daysLeft}
                         urgency={item.urgency}
                         icon={iconFor(categoryById.get(item.categoryId))}
-                        isSoonest={child.id === soonestId}
                         hot={child.id === hoveredId}
                         selected={child.id === selectedId}
-                        index={i}
-                        onHoverChange={setHoveredId}
+                        layoutMotion={layoutMotion}
+                        onHoverChange={setHover}
                         onSelect={onTileSelect}
                         onOpen={openEdit}
                         onFocusChange={setFocusedId}
@@ -342,25 +406,29 @@ export function MoneyMap({ items, categories }: { items: ItemRow[]; categories: 
               </AnimatePresence>
             </>
           )}
+          <MapTooltip
+            item={activeItem}
+            category={activeItem ? categoryById.get(activeItem.categoryId) : undefined}
+            anchor={activeAnchor}
+            bounds={container}
+            pinned={solo}
+            onDone={activeItem ? onDone : undefined}
+            onEdit={activeItem ? () => openEdit(activeItem.id) : undefined}
+            donePending={donePending}
+            onHold={setHover}
+          />
         </div>
-
-        <MapTooltip
-          item={activeItem}
-          category={activeItem ? categoryById.get(activeItem.categoryId) : undefined}
-        />
         </>
         )}
 
         <UnpricedShelf items={model.shelf} onAddCost={openEdit} />
-
-        <SummaryStrip model={model} />
 
         <section aria-label="All items" className="sr-only">
           <ul>
             {items.map((item) => {
               const { daysLeft, level } = getUrgency(item.due_date);
               return (
-                <li key={item.id}>
+                <li key={item.id} suppressHydrationWarning>
                   {item.title}: {level}, {daysLabel(daysLeft)}
                   {item.amount != null && `, ${formatCost(Number(item.amount), item.currency)}`}
                 </li>

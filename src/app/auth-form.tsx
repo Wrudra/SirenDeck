@@ -1,10 +1,33 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useId, useState } from "react";
+import Script from "next/script";
+import { useEffect, useId, useRef, useState } from "react";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 
+import { turnstileSiteKey } from "@/lib/auth/turnstile";
+
 type Mode = "login" | "signup";
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (
+        el: HTMLElement,
+        opts: {
+          sitekey: string;
+          theme?: "light" | "dark" | "auto";
+          callback?: (token: string) => void;
+          "expired-callback"?: () => void;
+          "error-callback"?: () => void;
+        },
+      ) => string;
+      reset: (id?: string) => void;
+      remove: (id: string) => void;
+    };
+  }
+}
 
 const fieldCls =
   "w-full rounded-[var(--radius-control)] border bg-surface px-3 py-2.5 text-sm outline-none transition-colors placeholder:text-ink-muted";
@@ -18,19 +41,50 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [notice, setNotice] = useState<"email-sent" | "signed-in" | "no-email" | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<HTMLDivElement>(null);
+  const widgetId = useRef<string | null>(null);
+  const siteKey = turnstileSiteKey();
 
-  function validateField(name: string, value: string): string | null {
-    if (name === "email") {
-      if (value === "") return "Enter your email address.";
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-        return "Email address must include @ and a domain.";
-      }
+  function resetTurnstile() {
+    setTurnstileToken(null);
+    if (widgetId.current && window.turnstile) window.turnstile.reset(widgetId.current);
+  }
+
+  function mountTurnstile() {
+    if (!siteKey || !turnstileRef.current || !window.turnstile || widgetId.current) return;
+    widgetId.current = window.turnstile.render(turnstileRef.current, {
+      sitekey: siteKey,
+      theme: "light",
+      callback: (token) => setTurnstileToken(token),
+      "expired-callback": () => setTurnstileToken(null),
+      "error-callback": () => setTurnstileToken(null),
+    });
+  }
+
+  useEffect(() => {
+    mountTurnstile();
+    return () => {
+      if (widgetId.current && window.turnstile) window.turnstile.remove(widgetId.current);
+      widgetId.current = null;
+    };
+    // The widget mounts once the script is ready.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteKey]);
+
+  function emailError(value: string): string | null {
+    if (value === "") return "Enter your email address.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      return "Email address must include @ and a domain.";
     }
-    if (name === "password") {
-      if (value === "") return "Enter your password.";
-      if (value.length < 8) return "Use at least 8 characters.";
-    }
+    return null;
+  }
+
+  function passwordError(value: string): string | null {
+    if (value === "") return "Enter your password.";
+    if (mode !== "signup") return null;
+    if (value.length < 10) return "Use at least 10 characters.";
     return null;
   }
 
@@ -43,96 +97,128 @@ export function AuthForm({ mode }: { mode: Mode }) {
     });
   }
 
-  function onBlur(name: string, value: string) {
-    const msg = validateField(name, value);
-    setFieldErrors((prev) => {
-      const next = { ...prev };
-      if (msg) next[name] = msg;
-      else delete next[name];
-      return next;
+  async function post(authMode: string, body: Record<string, string>) {
+    const res = await fetch(`/api/auth?mode=${authMode}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      status?: "email-sent" | "signed-in" | "no-email";
+    };
+    if (!res.ok) {
+      throw new Error(data.error ?? "Connection failed. Please try again.");
+    }
+    return data;
   }
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function signInWithPassword(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const errs: Record<string, string> = {};
-    for (const [name, value] of [
-      ["email", email],
-      ["password", password],
-    ] as const) {
-      const msg = validateField(name, value);
-      if (msg) errs[name] = msg;
-    }
+    const emailMsg = emailError(email);
+    const passwordMsg = passwordError(password);
+    if (emailMsg) errs.email = emailMsg;
+    if (passwordMsg) errs.password = passwordMsg;
+    if (!siteKey) errs.turnstile = "Sign-in is not configured.";
+    else if (!turnstileToken) errs.turnstile = "Confirm you are human, then try again.";
     setFieldErrors(errs);
     if (Object.keys(errs).length > 0) {
-      const first = errs.email ? "email" : "password";
-      const el = document.getElementById(first);
-      el?.focus();
+      document.getElementById(errs.email ? "email" : "password")?.focus();
       return;
     }
-
     setPending(true);
     setError(null);
     try {
-      const res = await fetch(`/api/auth?mode=${mode}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+      const data = await post(mode === "signup" ? "signup" : "login", {
+        email,
+        password,
+        turnstileToken: turnstileToken ?? "",
       });
-      if (!res.ok) {
-        const data = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(data.error ?? "Connection failed. Please try again.");
-      }
-      const data = (await res.json()) as { needsConfirmation?: boolean };
-      if (data.needsConfirmation) {
-        setAwaitingConfirmation(true);
+      if (
+        mode === "signup" &&
+        (data.status === "email-sent" || data.status === "no-email" || data.status === "signed-in")
+      ) {
+        setNotice(data.status);
         return;
       }
       router.replace("/app");
       router.refresh();
     } catch (err) {
+      resetTurnstile();
       setError(err instanceof Error ? err.message : "Connection failed. Please try again.");
     } finally {
       setPending(false);
     }
   }
 
-  if (awaitingConfirmation) {
+  if (notice) {
+    const sent = notice === "email-sent";
+    const ready = notice === "signed-in";
     return (
-      <div className="w-full rounded-[var(--radius-dialog)] border border-rule bg-surface p-5 text-center sm:p-6">
-        <p className="ledger-cap text-[10px] text-ink-muted">Check your inbox</p>
-        <p
-          className="mt-3 text-sm leading-relaxed text-ink-muted"
-          style={{ textWrap: "pretty" }}
-        >
-          We sent a confirmation link to{" "}
-          <span className="font-medium text-ink">{email}</span>. Click it to
-          activate your account, then sign in here.
+      <div role="status" className="flex w-full flex-col gap-4">
+        <h2 className="text-xl font-semibold tracking-[-0.03em]">
+          {sent ? "Check your email" : ready ? "Account created" : "No email was sent"}
+        </h2>
+        <p className="text-sm leading-relaxed text-ink" style={{ textWrap: "pretty" }}>
+          {sent ? (
+            <>
+              We sent a confirmation link to <span className="font-medium">{email}</span>. Open it,
+              then sign in.
+            </>
+          ) : ready ? (
+            "Your account is ready. No confirmation email was needed."
+          ) : (
+            <>
+              Nothing was sent to <span className="font-medium">{email}</span>. If you already have
+              an account, sign in.
+            </>
+          )}
         </p>
+        {sent && (
+          <p className="text-sm text-ink-muted">Nothing arrived? Check spam, then try signing in.</p>
+        )}
+        {ready ? (
+          <button
+            type="button"
+            onClick={() => {
+              router.replace("/app");
+              router.refresh();
+            }}
+            className="plate h-11 w-full rounded-full text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            Open your map
+          </button>
+        ) : (
+          <Link
+            href="/login"
+            className="plate inline-flex h-11 w-full items-center justify-center rounded-full text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            Sign in
+          </Link>
+        )}
       </div>
     );
   }
 
-  const emailId = "email";
-  const passwordId = "password";
   const formErrorId = `${uid}-form-err`;
 
   return (
     <form
       method="post"
       action="#"
-      onSubmit={handleSubmit}
+      onSubmit={signInWithPassword}
       noValidate
       aria-busy={pending || undefined}
       aria-describedby={error ? formErrorId : undefined}
-      className="flex w-full flex-col gap-4 rounded-[var(--radius-dialog)] border border-rule bg-surface p-5 sm:p-6"
+      className="flex w-full flex-col gap-5"
     >
       <div className="grid gap-1.5">
-        <label htmlFor={emailId} className="ledger-cap text-[10px] text-ink-muted">
+        <label htmlFor="email" className="text-sm font-medium">
           Email
         </label>
         <input
-          id={emailId}
+          id="email"
           name="email"
           type="email"
           required
@@ -145,7 +231,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
             clearFieldError("email");
             if (error) setError(null);
           }}
-          onBlur={() => onBlur("email", email)}
+          onBlur={() => {
+            const msg = emailError(email);
+            setFieldErrors((prev) => {
+              const next = { ...prev };
+              if (msg) next.email = msg;
+              else delete next.email;
+              return next;
+            });
+          }}
           aria-invalid={fieldErrors.email ? true : undefined}
           aria-describedby={fieldErrors.email ? "email-err" : undefined}
           placeholder="you@example.com"
@@ -163,16 +257,16 @@ export function AuthForm({ mode }: { mode: Mode }) {
       </div>
 
       <div className="grid gap-1.5">
-        <label htmlFor={passwordId} className="ledger-cap text-[10px] text-ink-muted">
+        <label htmlFor="password" className="text-sm font-medium">
           Password
         </label>
         <div className="relative">
           <input
-            id={passwordId}
+            id="password"
             name="password"
             type={showPassword ? "text" : "password"}
             required
-            minLength={8}
+            minLength={mode === "signup" ? 10 : undefined}
             autoComplete={mode === "signup" ? "new-password" : "current-password"}
             value={password}
             onChange={(e) => {
@@ -180,16 +274,20 @@ export function AuthForm({ mode }: { mode: Mode }) {
               clearFieldError("password");
               if (error) setError(null);
             }}
-            onBlur={() => onBlur("password", password)}
+            onBlur={() => {
+              const msg = passwordError(password);
+              setFieldErrors((prev) => {
+                const next = { ...prev };
+                if (msg) next.password = msg;
+                else delete next.password;
+                return next;
+              });
+            }}
             aria-invalid={fieldErrors.password ? true : undefined}
             aria-describedby={
-              fieldErrors.password
-                ? "password-err"
-                : mode === "signup"
-                  ? "password-hint"
-                  : undefined
+              fieldErrors.password ? "password-err" : mode === "signup" ? "password-hint" : undefined
             }
-            placeholder="At least 8 characters"
+            placeholder={mode === "signup" ? "At least 10 characters" : "Password"}
             className={`${fieldCls} pr-11 ${
               fieldErrors.password
                 ? "border-ink focus-visible:ring-2 focus-visible:ring-ink/30"
@@ -215,16 +313,30 @@ export function AuthForm({ mode }: { mode: Mode }) {
           </p>
         ) : mode === "signup" ? (
           <p id="password-hint" className="text-xs text-ink-muted">
-            At least 8 characters.
+            At least 10 characters.
           </p>
         ) : null}
       </div>
+
+      {siteKey ? (
+        <>
+          <Script
+            src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+            strategy="afterInteractive"
+            onLoad={mountTurnstile}
+          />
+          <div ref={turnstileRef} />
+        </>
+      ) : null}
+      {fieldErrors.turnstile && (
+        <p className="text-xs text-ink">{fieldErrors.turnstile}</p>
+      )}
 
       {error && (
         <p
           id={formErrorId}
           role="alert"
-          className="rounded-[var(--radius-control)] border border-ink border-l-[3px] bg-surface-2 px-3 py-2 text-xs font-medium text-ink"
+          className="rounded-[var(--radius-control)] border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
         >
           {error}
         </p>
@@ -232,8 +344,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
       <button
         type="submit"
-        disabled={pending}
-        className="plate mt-1 h-11 w-full rounded-[var(--radius-control)] text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50"
+        disabled={pending || !turnstileToken}
+        className="plate h-11 w-full rounded-full text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50"
       >
         {pending
           ? mode === "signup"

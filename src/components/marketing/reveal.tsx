@@ -29,11 +29,19 @@ export function Reveal({
     const el = ref.current;
     if (!el) return;
 
+    const show = () => el.classList.add("reveal-in");
+
     if (
       typeof IntersectionObserver === "undefined" ||
       window.matchMedia("(prefers-reduced-motion: reduce)").matches
     ) {
-      el.classList.add("reveal-in");
+      show();
+      return;
+    }
+
+    const rect = el.getBoundingClientRect();
+    if (rect.top < window.innerHeight && rect.bottom > 0) {
+      show();
       return;
     }
 

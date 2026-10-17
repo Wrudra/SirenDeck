@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "motion/react";
 import { PlusIcon } from "lucide-react";
 
 import type { MapItem } from "@/lib/map/map-model";
@@ -33,13 +32,8 @@ export function UnpricedShelf({
       <div className="flex flex-wrap items-center gap-2">
         <span className="ledger-cap mr-1 text-[10px] text-ink-muted">Unpriced</span>
         {items.map((item) => (
-          <motion.span
+          <span
             key={item.id}
-            layout
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 500, damping: 35 }}
             className="inline-flex max-w-64 items-center gap-2 rounded-[var(--radius-control)] border border-rule bg-surface-2 py-1 pl-2.5 pr-1.5 text-xs"
           >
             <span
@@ -57,7 +51,7 @@ export function UnpricedShelf({
             >
               <PlusIcon className="size-3" aria-hidden />
             </button>
-          </motion.span>
+          </span>
         ))}
       </div>
     </section>

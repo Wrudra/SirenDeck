@@ -4,7 +4,7 @@
 A personal life-admin tracker for everything that expires, renews, or comes due
 (subscriptions, insurance, domains, warranties, licenses, bills, passports/visas).
 One signature view: the **Money Map** — a treemap where each rectangle is a deadline,
-sized by monthly/yearly cost and colored by urgency. It must answer at a glance:
+sized by how soon each deadline is and colored by urgency. Cost stays on the tile. It must answer at a glance:
 "What is renewing soon, and what does it cost me?"
 
 ## Stack (fixed — do not substitute)
@@ -18,7 +18,7 @@ sized by monthly/yearly cost and colored by urgency. It must answer at a glance:
 - Deploy: Vercel. No vector/embedding/AI features in v1.
 
 ## Decisions log
-- **Auth**: email + password (existing). Magic link + Google OAuth were considered and dropped for v1.
+- **Auth**: email + password. Confirmation redirects use `NEXT_PUBLIC_SITE_URL`, never the request host.
 - **Default currency**: BDT (৳) at the DB level; per-item override + settings page later.
 - **Migrations**: baseline hardening + Phase 2 tables in one migration; template file deleted.
 - **Skills CLI**: `npx skills add` skipped; see "Design skills" below.

@@ -4,15 +4,21 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import type { ActionState, MutationResult } from "@/lib/actions/types";
+import { completeCycle } from "@/lib/map/cycle";
 import { requireUser } from "@/lib/supabase/require-user";
-import { itemInputSchema } from "@/lib/validation/item";
+import { itemInputSchema, type Recurrence } from "@/lib/validation/item";
 
 const uuidSchema = z.string().uuid();
 
 type OwnedItemResult =
   | { error: string }
   | {
-      item: { id: string };
+      item: {
+        id: string;
+        due_date: string;
+        auto_renews: boolean;
+        recurrence: Recurrence;
+      };
       supabase: Awaited<ReturnType<typeof requireUser>>["supabase"];
     };
 
@@ -24,13 +30,33 @@ async function ownedItem(id: string): Promise<OwnedItemResult> {
   const { user, supabase } = await requireUser();
   const { data, error } = await supabase
     .from("items")
-    .select("id, user_id")
+    .select("id, user_id, due_date, auto_renews, recurrence")
     .eq("id", parsed.data)
     .single();
 
   if (error || !data) return { error: "Item not found." };
   if (data.user_id !== user.id) return { error: "Item not found." };
-  return { item: data, supabase };
+  return {
+    item: {
+      id: data.id,
+      due_date: data.due_date,
+      auto_renews: data.auto_renews,
+      recurrence: data.recurrence as Recurrence,
+    },
+    supabase,
+  };
+}
+
+async function categoryOwnedByUser(
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"],
+  categoryId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("id", categoryId)
+    .maybeSingle();
+  return data != null;
 }
 
 /** FormData entries are strings; normalize to the shape itemInputSchema expects. */
@@ -72,6 +98,11 @@ export async function addItem(
   const parsed = itemInputSchema.safeParse(parseFormValue(formData));
   if (!parsed.success) {
     return { ok: false, fieldErrors: zodFieldErrors(parsed.error) };
+  }
+
+  const ownedCategory = await categoryOwnedByUser(supabase, parsed.data.categoryId);
+  if (!ownedCategory) {
+    return { ok: false, fieldErrors: { categoryId: "Choose one of your categories." } };
   }
 
   const { data: inserted, error } = await supabase
@@ -125,6 +156,11 @@ export async function updateItem(
     return { ok: false, fieldErrors: zodFieldErrors(parsed.error) };
   }
 
+  const ownedCategory = await categoryOwnedByUser(supabase, parsed.data.categoryId);
+  if (!ownedCategory) {
+    return { ok: false, fieldErrors: { categoryId: "Choose one of your categories." } };
+  }
+
   const { error } = await supabase
     .from("items")
     .update({
@@ -151,10 +187,31 @@ export async function markDone(id: string): Promise<MutationResult> {
   const result = await ownedItem(id);
   if ("error" in result) return { ok: false, error: result.error };
 
-  const { error } = await result.supabase
+  const { item, supabase } = result;
+  if (item.auto_renews && item.recurrence !== "none") {
+    const dueDate = completeCycle(item.due_date, item.recurrence, new Date());
+    if (!dueDate) return { ok: false, error: "Could not mark done." };
+    const { error } = await supabase
+      .from("items")
+      .update({
+        due_date: dueDate,
+        status: "active",
+        snoozed_until: null,
+      })
+      .eq("id", item.id);
+    if (error) return { ok: false, error: "Could not mark done." };
+    revalidatePath("/app");
+    return { ok: true, rolled: true };
+  }
+
+  const { error } = await supabase
     .from("items")
-    .update({ status: "done", completed_at: new Date().toISOString() })
-    .eq("id", result.item.id);
+    .update({
+      status: "done",
+      completed_at: new Date().toISOString(),
+      snoozed_until: null,
+    })
+    .eq("id", item.id);
   if (error) return { ok: false, error: "Could not mark done." };
 
   revalidatePath("/app");

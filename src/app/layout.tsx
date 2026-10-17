@@ -1,25 +1,26 @@
-import type { Metadata } from "next";
-import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { JetBrains_Mono } from "next/font/google";
 
 import "./globals.css";
 
 import { BlocksAuthProvider } from "@/components/blocks-auth-provider";
 
-const fraunces = Fraunces({
-  subsets: ["latin"],
-  variable: "--font-display",
-  axes: ["opsz"],
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-});
-
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
+  colorScheme: "light",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f5f5f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#f5f5f7" },
+  ],
+};
 
 export const metadata: Metadata = {
   title: { default: "SirenDeck", template: "%s · SirenDeck" },
@@ -39,7 +40,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${fraunces.variable} ${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
+        className={`${jetbrainsMono.variable} antialiased`}
       >
         <a
           href="#main-content"
