@@ -29,10 +29,10 @@ export default function Home() {
               Sign in
             </Link>
             <Link
-              href="/signup"
+              href="/login"
               className="plate rounded-[var(--radius-control)] px-3.5 py-1.5 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
-              Get started
+              Sign in
             </Link>
           </div>
         </div>
@@ -48,7 +48,7 @@ export default function Home() {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Link
-              href="/signup"
+              href="/login"
               className="plate inline-flex h-11 items-center justify-center rounded-[var(--radius-control)] px-5 text-base font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               Create a free account
