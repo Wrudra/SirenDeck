@@ -5,7 +5,7 @@ import { Logo } from "@/components/brand/logo";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 
 export function BlocksTopBar({ email }: { email: string }) {
-  const { logout } = useBlocksAuth();
+  const { logout, login } = useBlocksAuth();
 
   return (
     <header className="flex min-h-14 shrink-0 items-center justify-between px-4 pt-[env(safe-area-inset-top)]">
@@ -22,7 +22,7 @@ export function BlocksTopBar({ email }: { email: string }) {
           type="button"
           onClick={() => {
             void logout().then(() => {
-              window.location.href = "/login";
+              void login("/app");
             });
           }}
           className="rounded-full px-3 py-1.5 text-sm text-ink-muted transition-colors duration-150 hover:bg-surface-2 hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"

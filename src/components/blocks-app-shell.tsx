@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { useBlocksAuth } from "@/components/blocks-auth-provider";
 import { BlocksTopBar } from "@/components/shell/blocks-top-bar";
@@ -17,13 +17,19 @@ function claimEmail(claims: Record<string, unknown> | null): string {
  * browser cookie from hosted OIDC, so gating happens client-side.
  */
 export function BlocksAppShell({ children }: { children: React.ReactNode }) {
-  const { status, claims } = useBlocksAuth();
+  const { status, configured, login, claims } = useBlocksAuth();
+  const kicked = useRef(false);
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      window.location.href = "/login";
+    // Kick the hosted OIDC login directly — no local /login trampoline.
+    // Ref guard keeps StrictMode's double-invoke from redirecting twice.
+    if (status === "unauthenticated" && configured && !kicked.current) {
+      kicked.current = true;
+      void login("/app").catch(() => {
+        kicked.current = false;
+      });
     }
-  }, [status]);
+  }, [status, configured, login]);
 
   if (status === "loading") {
     return (

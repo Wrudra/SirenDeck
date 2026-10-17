@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { useBlocksAuth } from "@/components/blocks-auth-provider";
-import { completeLogin } from "@/lib/blocks/auth";
+import { completeLogin, startLogin } from "@/lib/blocks/auth";
 
 /**
  * OIDC callback — must NOT be wrapped in an auth gate.
@@ -38,12 +37,13 @@ export default function LoginCallbackPage() {
         <p role="alert" className="max-w-sm text-center text-sm text-ink">
           {error}
         </p>
-        <Link
-          href="/login"
+        <button
+          type="button"
+          onClick={() => void startLogin("/app")}
           className="text-sm font-medium underline decoration-rule-strong underline-offset-4 hover:decoration-ink"
         >
           Back to sign in
-        </Link>
+        </button>
       </main>
     );
   }
